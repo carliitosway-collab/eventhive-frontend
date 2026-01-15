@@ -18,7 +18,8 @@ export default function Navbar() {
           <Link to="/events/new">New Event</Link>
 
           <span style={{ marginLeft: "auto" }}>
-            {user?.name ? `👤 ${user.name}` : "👤 Logged"}
+            {user?.name ? `👤 ${user.name}` : "👤 Usuario"}
+
           </span>
 
           <button onClick={logOutUser}>Logout</button>

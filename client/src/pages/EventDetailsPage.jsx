@@ -9,11 +9,14 @@ import {
   FiLock,
   FiMessageCircle,
   FiLoader,
+  FiTrash2,
+  FiSend,
 } from "react-icons/fi";
 import { AiOutlineHeart, AiFillHeart } from "react-icons/ai";
 
 import api from "../services/api.service";
 import favoritesService from "../services/favorites.service";
+import commentsService from "../services/comments.service";
 
 function IconText({ icon: Icon, children, style }) {
   return (
@@ -28,7 +31,13 @@ export default function EventDetailsPage() {
   const { eventId } = useParams();
 
   const [event, setEvent] = useState(null);
+
+  // ✅ comments state
   const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
+  const [isCommentLoading, setIsCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState("");
+
   const [favoritesIds, setFavoritesIds] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +52,7 @@ export default function EventDetailsPage() {
   const token = localStorage.getItem("authToken");
   const hasToken = !!token;
 
-  // ✅ userId desde JWT (por si luego lo necesitas)
+  // ✅ userId desde JWT
   const userIdFromToken = useMemo(() => {
     if (!token) return null;
     try {
@@ -66,9 +75,7 @@ export default function EventDetailsPage() {
       .then((res) => {
         const payload = res.data?.data ?? res.data;
         const eventData = payload?.event ?? payload;
-        const commentsData = payload?.comments ?? [];
         setEvent(eventData);
-        setComments(commentsData);
       })
       .catch((err) => {
         console.log(err);
@@ -77,22 +84,36 @@ export default function EventDetailsPage() {
       .finally(() => setIsLoading(false));
   };
 
+  const fetchComments = () => {
+    setCommentError("");
+
+    commentsService
+      .getByEvent(eventId)
+      .then((res) => {
+        setComments(res.data?.data || []);
+      })
+      .catch((err) => {
+        console.log(err);
+        setCommentError("No pude cargar comentarios.");
+      });
+  };
+
   const fetchFavorites = () => {
     if (!hasToken) return;
 
     favoritesService
       .getMyFavorites()
       .then((res) => {
-        const favs = res.data?.data || [];
+        // tu backend devuelve array directo (lo normal). Si llega {data: []} también lo cubrimos:
+        const favs = Array.isArray(res.data) ? res.data : res.data?.data || [];
         setFavoritesIds(favs.map((ev) => ev._id));
       })
-      .catch((err) => {
-        console.log(err);
-      });
+      .catch((err) => console.log(err));
   };
 
   useEffect(() => {
     fetchEvent();
+    fetchComments();
     fetchFavorites();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
@@ -150,6 +171,57 @@ export default function EventDetailsPage() {
         setFavError(err?.response?.data?.message || "No pude actualizar favoritos.");
       })
       .finally(() => setIsFavLoading(false));
+  };
+
+  // ✅ COMMENTS: create
+  const handleCreateComment = (e) => {
+    e.preventDefault();
+
+    if (!hasToken) {
+      setCommentError("Necesitas login para comentar.");
+      return;
+    }
+
+    const clean = commentText.trim();
+    if (!clean) {
+      setCommentError("Escribe algo antes de enviar.");
+      return;
+    }
+
+    setIsCommentLoading(true);
+    setCommentError("");
+
+    commentsService
+      .create({ text: clean, eventId })
+      .then(() => {
+        // 🔑 el comment creado viene sin populate(author),
+        // así que recargamos con GET para traer nombre/email correctamente
+        setCommentText("");
+        fetchComments();
+      })
+      .catch((err) => {
+        console.log(err);
+        setCommentError(err?.response?.data?.message || "No pude publicar el comentario.");
+      })
+      .finally(() => setIsCommentLoading(false));
+  };
+
+  // ✅ COMMENTS: delete
+  const handleDeleteComment = (commentId) => {
+    if (!hasToken) {
+      setCommentError("Necesitas login.");
+      return;
+    }
+
+    commentsService
+      .remove(commentId)
+      .then(() => {
+        setComments((prev) => prev.filter((c) => c._id !== commentId));
+      })
+      .catch((err) => {
+        console.log(err);
+        setCommentError(err?.response?.data?.message || "No pude borrar el comentario.");
+      });
   };
 
   if (isLoading) {
@@ -278,12 +350,80 @@ export default function EventDetailsPage() {
         {attendError && <p style={{ ...styles.error, marginTop: 10 }}>{attendError}</p>}
         {favError && <p style={{ ...styles.error, marginTop: 10 }}>{favError}</p>}
 
-        <div style={styles.nextBox}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {/* ✅ COMMENTS SECTION */}
+        <div style={styles.commentsBox}>
+          <div style={styles.commentsHeader}>
             <IconText icon={FiMessageCircle}>
-              Comments cargados: <b>{comments.length}</b>
+              Comentarios <b>({comments.length})</b>
             </IconText>
           </div>
+
+          {/* Create comment */}
+          <form onSubmit={handleCreateComment} style={styles.commentForm}>
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder={hasToken ? "Escribe un comentario..." : "Haz login para comentar"}
+              disabled={!hasToken || isCommentLoading}
+              style={styles.textarea}
+              rows={3}
+            />
+            <button
+              type="submit"
+              disabled={!hasToken || isCommentLoading}
+              style={{
+                ...styles.btn,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                opacity: !hasToken || isCommentLoading ? 0.6 : 1,
+              }}
+            >
+              <FiSend />
+              {isCommentLoading ? "Enviando…" : "Enviar"}
+            </button>
+          </form>
+
+          {commentError && <p style={{ ...styles.error, marginTop: 10 }}>{commentError}</p>}
+
+          {/* Comments list */}
+          {comments.length === 0 ? (
+            <p style={{ ...styles.muted, marginTop: 10 }}>Todavía no hay comentarios.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+              {comments.map((c) => {
+                const isMine = userIdFromToken && String(c?.author?._id) === String(userIdFromToken);
+                const when = c?.createdAt ? new Date(c.createdAt).toLocaleString() : "";
+
+                return (
+                  <div key={c._id} style={styles.commentCard}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ opacity: 0.85 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>
+                          {c?.author?.name || c?.author?.email || "Usuario"}
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.7 }}>{when}</div>
+                      </div>
+
+                      {isMine && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComment(c._id)}
+                          style={styles.deleteBtn}
+                          title="Borrar comentario"
+                          aria-label="Borrar comentario"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
+                    </div>
+
+                    <p style={{ margin: "10px 0 0", opacity: 0.85, lineHeight: 1.45 }}>{c.text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </div>
@@ -317,12 +457,49 @@ const styles = {
     boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
     fontWeight: 600,
   },
-  nextBox: {
-    marginTop: 16,
-    padding: 12,
+
+  // ✅ comments styles
+  commentsBox: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTop: "1px solid rgba(0,0,0,0.08)",
+  },
+  commentsHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  commentForm: {
+    display: "grid",
+    gap: 10,
+    marginTop: 10,
+  },
+  textarea: {
+    width: "100%",
     borderRadius: 12,
-    background: "rgba(0,0,0,0.03)",
-    opacity: 0.85,
-    fontSize: 14,
+    border: "1px solid rgba(0,0,0,0.15)",
+    padding: 12,
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.04)",
+  },
+  commentCard: {
+    border: "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 14,
+    padding: 12,
+    background: "white",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.04)",
+  },
+  deleteBtn: {
+    border: "1px solid rgba(0,0,0,0.12)",
+    borderRadius: 10,
+    padding: "6px 8px",
+    background: "white",
+    cursor: "pointer",
+    opacity: 0.9,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 };

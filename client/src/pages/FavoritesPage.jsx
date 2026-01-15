@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FiArrowLeft, FiHeart, FiLoader, FiAlertTriangle } from "react-icons/fi";
-import api from "../services/api.service";
+import { FiArrowLeft, FiHeart, FiLoader, FiAlertTriangle, FiX } from "react-icons/fi";
+import favoritesService from "../services/favorites.service";
+import EventCard from "../components/EventCard";
 
 function IconText({ icon: Icon, children, style }) {
   return (
@@ -13,27 +14,19 @@ function IconText({ icon: Icon, children, style }) {
 }
 
 export default function FavoritesPage() {
-  const token = localStorage.getItem("authToken");
-  const hasToken = !!token;
-
   const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   const fetchFavorites = () => {
-    if (!hasToken) {
-      setIsLoading(false);
-      setError("Necesitas login para ver tus favoritos.");
-      return;
-    }
-
     setIsLoading(true);
     setError("");
 
-    api
-      .get("/me/favorites")
+    favoritesService
+      .getMyFavorites()
       .then((res) => {
-        setFavorites(res.data?.data || []);
+        const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        setFavorites(data);
       })
       .catch((err) => {
         console.log(err);
@@ -44,12 +37,22 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     fetchFavorites();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sortedFavorites = useMemo(() => {
     return [...favorites].sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [favorites]);
+
+  const handleRemoveFavorite = (eventId) => {
+    const previous = favorites;
+    setFavorites((prev) => prev.filter((ev) => ev._id !== eventId));
+
+    favoritesService.removeFavorite(eventId).catch((err) => {
+      console.log(err);
+      setFavorites(previous);
+      setError("No pude quitar el favorito. Intenta de nuevo.");
+    });
+  };
 
   if (isLoading) {
     return (
@@ -83,6 +86,10 @@ export default function FavoritesPage() {
         <p style={styles.error}>
           <IconText icon={FiAlertTriangle}>{error}</IconText>
         </p>
+
+        <button onClick={fetchFavorites} style={styles.btn} type="button">
+          Reintentar
+        </button>
       </div>
     );
   }
@@ -109,18 +116,27 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <div style={styles.grid}>
-          {sortedFavorites.map((ev) => {
-            const dateText = ev?.date ? new Date(ev.date).toLocaleString() : "Sin fecha";
-            return (
-              <Link key={ev._id} to={`/events/${ev._id}`} style={styles.cardLink}>
-                <div style={styles.card}>
-                  <h3 style={styles.cardTitle}>{ev.title}</h3>
-                  <p style={styles.cardMeta}>{ev.location || "Sin ubicación"}</p>
-                  <p style={styles.cardMeta}>{dateText}</p>
-                </div>
-              </Link>
-            );
-          })}
+          {sortedFavorites.map((ev) => (
+            <div key={ev._id} style={{ position: "relative" }}>
+              <button
+                type="button"
+                style={styles.removeBtn}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleRemoveFavorite(ev._id);
+                }}
+                aria-label="Quitar de favoritos"
+                title="Quitar de favoritos"
+              >
+                <IconText icon={FiX} style={{ gap: 6 }}>
+                  Quitar
+                </IconText>
+              </button>
+
+              <EventCard event={ev} />
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -133,9 +149,10 @@ const styles = {
   h1: { margin: "0 0 6px", fontSize: 42 },
   subtitle: { margin: 0, opacity: 0.7, fontSize: 16 },
   muted: { opacity: 0.75 },
-  error: { color: "crimson" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 },
-  cardLink: { textDecoration: "none", color: "inherit" },
+  error: { color: "crimson", marginBottom: 12 },
+
+  grid: { display: "grid", gap: 12 },
+
   card: {
     border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 16,
@@ -143,8 +160,7 @@ const styles = {
     background: "white",
     boxShadow: "0 10px 24px rgba(0,0,0,0.06)",
   },
-  cardTitle: { margin: "0 0 8px", fontSize: 18 },
-  cardMeta: { margin: 0, opacity: 0.75, fontSize: 14 },
+
   btn: {
     marginTop: 10,
     padding: "10px 14px",
@@ -154,5 +170,19 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
     fontWeight: 600,
+  },
+
+  removeBtn: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 2,
+    border: "1px solid rgba(0,0,0,0.12)",
+    borderRadius: 999,
+    padding: "6px 10px",
+    background: "white",
+    cursor: "pointer",
+    fontSize: 12,
+    opacity: 0.92,
   },
 };
