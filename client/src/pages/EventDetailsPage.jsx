@@ -143,8 +143,10 @@ export default function EventDetailsPage() {
   }, [event, userIdFromToken]);
 
   const isFavorite = useMemo(() => {
-    return favoritesIds.some((id) => String(id) === String(eventId));
-  }, [favoritesIds, eventId]);
+    const currentId = event?._id;
+    if (!currentId) return false;
+    return favoritesIds.some((id) => String(id) === String(currentId));
+  }, [favoritesIds, event?._id]);
 
   const isOwner = useMemo(() => {
     if (!userIdFromToken || !event?.createdBy) return false;
@@ -185,7 +187,10 @@ export default function EventDetailsPage() {
     setIsFavLoading(true);
     setFavError("");
 
-    const request = isFavorite ? favoritesService.removeFavorite(eventId) : favoritesService.addFavorite(eventId);
+    const targetId = event?._id || eventId;
+    const request = isFavorite
+      ? favoritesService.removeFavorite(targetId)
+      : favoritesService.addFavorite(targetId);
 
     request
       .then(() => fetchFavorites())
@@ -345,7 +350,8 @@ export default function EventDetailsPage() {
 
         {event.createdBy && (
           <div style={{ marginTop: 12, opacity: 0.8 }}>
-            <span style={{ fontWeight: 700 }}>Creado por:</span> {event.createdBy.name || event.createdBy.email || "—"}
+            <span style={{ fontWeight: 700 }}>Creado por:</span>{" "}
+            {event.createdBy.name || event.createdBy.email || "—"}
           </div>
         )}
 
