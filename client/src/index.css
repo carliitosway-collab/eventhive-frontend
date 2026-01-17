@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base limpia global (sin layout centrado de Vite) */
+/* App baseline */
 :root {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -20,6 +20,27 @@ body,
 
 body {
   margin: 0;
-  background-color: #ffffff;
   color: #111111;
+  background: #f6f7fb; /* soft neutral background */
+}
+
+/* Better tap behavior on mobile */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Optional helpers for “Meetup-like” spacing */
+.container-app {
+  max-width: 72rem; /* ~ max-w-6xl */
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-app {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }

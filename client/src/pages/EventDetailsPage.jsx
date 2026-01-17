@@ -4,7 +4,6 @@ import {
   FiArrowLeft,
   FiMapPin,
   FiCalendar,
-  FiUsers,
   FiGlobe,
   FiLock,
   FiMessageCircle,
@@ -13,6 +12,7 @@ import {
   FiSend,
   FiEdit2,
   FiAlertTriangle,
+  FiRefreshCcw,
 } from "react-icons/fi";
 import { AiOutlineHeart, AiFillHeart } from "react-icons/ai";
 
@@ -33,12 +33,12 @@ function IconText({ icon: Icon, children, className = "" }) {
 function getNiceError(err) {
   const status = err?.response?.status;
 
-  if (status === 401) return "Tu sesión expiró o no tienes acceso. Inicia sesión de nuevo.";
-  if (status === 403) return "No tienes permisos para hacer eso.";
-  if (status === 404) return "No encontré ese evento.";
-  if (!err?.response) return "No hay conexión o el servidor no responde.";
+  if (status === 401) return "Your session expired or you don’t have access. Please log in again.";
+  if (status === 403) return "You don’t have permission to do that.";
+  if (status === 404) return "Event not found.";
+  if (!err?.response) return "No connection or the server is not responding.";
 
-  return err?.response?.data?.message || "Ha ocurrido un error.";
+  return err?.response?.data?.message || "Something went wrong.";
 }
 
 export default function EventDetailsPage() {
@@ -54,7 +54,7 @@ export default function EventDetailsPage() {
   const [commentError, setCommentError] = useState("");
 
   // favorites
-  const [favoritesIds, setFavoritesIds] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
   // page
   const [isLoading, setIsLoading] = useState(true);
@@ -115,7 +115,7 @@ export default function EventDetailsPage() {
       .then((res) => setComments(res.data?.data || []))
       .catch((err) => {
         console.log(err);
-        setCommentError("No pude cargar comentarios.");
+        setCommentError("Could not load comments.");
       });
   };
 
@@ -126,7 +126,7 @@ export default function EventDetailsPage() {
       .getMyFavorites()
       .then((res) => {
         const favs = Array.isArray(res.data) ? res.data : res.data?.data || [];
-        setFavoritesIds(favs.map((ev) => ev._id));
+        setFavoriteIds(favs.map((ev) => ev._id));
       })
       .catch((err) => console.log(err));
   };
@@ -146,22 +146,20 @@ export default function EventDetailsPage() {
   const isFavorite = useMemo(() => {
     const currentId = event?._id;
     if (!currentId) return false;
-    return favoritesIds.some((id) => String(id) === String(currentId));
-  }, [favoritesIds, event?._id]);
+    return favoriteIds.some((id) => String(id) === String(currentId));
+  }, [favoriteIds, event?._id]);
 
   const isOwner = useMemo(() => {
     if (!userIdFromToken || !event?.createdBy) return false;
-
     const ownerId = typeof event.createdBy === "string" ? event.createdBy : event.createdBy?._id;
-
     return String(ownerId) === String(userIdFromToken);
   }, [event, userIdFromToken]);
 
-  const dateText = event?.date ? new Date(event.date).toLocaleString() : "Sin fecha";
+  const dateText = event?.date ? new Date(event.date).toLocaleString() : "No date";
 
   const handleToggleAttend = () => {
     if (!hasToken) {
-      setAttendError("Necesitas login para inscribirte.");
+      setAttendError("You must be logged in to attend.");
       return;
     }
 
@@ -181,7 +179,7 @@ export default function EventDetailsPage() {
 
   const handleToggleFavorite = () => {
     if (!hasToken) {
-      setFavError("Necesitas login para guardar favoritos.");
+      setFavError("You must be logged in to save favorites.");
       return;
     }
 
@@ -206,13 +204,13 @@ export default function EventDetailsPage() {
     e.preventDefault();
 
     if (!hasToken) {
-      setCommentError("Necesitas login para comentar.");
+      setCommentError("You must be logged in to comment.");
       return;
     }
 
     const clean = commentText.trim();
     if (!clean) {
-      setCommentError("Escribe algo antes de enviar.");
+      setCommentError("Write something before sending.");
       return;
     }
 
@@ -234,7 +232,7 @@ export default function EventDetailsPage() {
 
   const handleDeleteComment = (commentId) => {
     if (!hasToken) {
-      setCommentError("Necesitas login.");
+      setCommentError("You must be logged in.");
       return;
     }
 
@@ -251,16 +249,16 @@ export default function EventDetailsPage() {
     setOwnerError("");
 
     if (!hasToken) {
-      setOwnerError("Necesitas login.");
+      setOwnerError("You must be logged in.");
       return;
     }
 
     if (!isOwner) {
-      setOwnerError("No tienes permisos para borrar este evento.");
+      setOwnerError("You don’t have permission to delete this event.");
       return;
     }
 
-    const ok = window.confirm("¿Seguro que quieres borrar este evento? Esta acción no se puede deshacer.");
+    const ok = window.confirm("Are you sure you want to delete this event? This cannot be undone.");
     if (!ok) return;
 
     setIsOwnerActionLoading(true);
@@ -275,30 +273,59 @@ export default function EventDetailsPage() {
       .finally(() => setIsOwnerActionLoading(false));
   };
 
+  const handleRefresh = () => {
+    fetchEvent();
+    fetchComments();
+    fetchFavorites();
+  };
+
+  // LOADING
   if (isLoading) {
     return (
       <PageLayout>
-        <Link to="/events" className="btn btn-ghost btn-sm mb-4">
-          <IconText icon={FiArrowLeft}>Volver</IconText>
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiArrowLeft />
+            Back
+          </Link>
 
-        <h1 className="text-4xl font-black mb-4">Event Details</h1>
+          <button type="button" className="btn btn-ghost btn-sm border border-base-300 gap-2" disabled>
+            <FiRefreshCcw />
+            Refresh
+          </button>
+        </div>
+
+        <header className="mt-4 mb-6">
+          <h1 className="text-4xl font-black">Event Details</h1>
+          <p className="opacity-70 mt-2">Loading event…</p>
+        </header>
 
         <p className="opacity-75">
-          <IconText icon={FiLoader}>Cargando…</IconText>
+          <IconText icon={FiLoader}>Loading…</IconText>
         </p>
       </PageLayout>
     );
   }
 
+  // ERROR
   if (error) {
     return (
       <PageLayout>
-        <Link to="/events" className="btn btn-ghost btn-sm mb-4">
-          <IconText icon={FiArrowLeft}>Volver</IconText>
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiArrowLeft />
+            Back
+          </Link>
 
-        <h1 className="text-4xl font-black mb-4">Event Details</h1>
+          <button type="button" onClick={handleRefresh} className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiRefreshCcw />
+            Refresh
+          </button>
+        </div>
+
+        <header className="mt-4 mb-6">
+          <h1 className="text-4xl font-black">Event Details</h1>
+        </header>
 
         <div className="alert alert-error">
           <IconText icon={FiAlertTriangle}>{error}</IconText>
@@ -307,225 +334,302 @@ export default function EventDetailsPage() {
     );
   }
 
+  // NO EVENT
   if (!event) {
     return (
       <PageLayout>
-        <Link to="/events" className="btn btn-ghost btn-sm mb-4">
-          <IconText icon={FiArrowLeft}>Volver</IconText>
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiArrowLeft />
+            Back
+          </Link>
 
-        <h1 className="text-4xl font-black mb-2">Event Details</h1>
-        <p className="opacity-75">No encontré el evento.</p>
+          <button type="button" onClick={handleRefresh} className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiRefreshCcw />
+            Refresh
+          </button>
+        </div>
+
+        <header className="mt-4 mb-2">
+          <h1 className="text-4xl font-black">Event Details</h1>
+        </header>
+
+        <p className="opacity-75">Event not found.</p>
       </PageLayout>
     );
   }
 
   return (
     <PageLayout>
-      <Link to="/events" className="btn btn-ghost btn-sm mb-4">
-        <IconText icon={FiArrowLeft}>Volver</IconText>
-      </Link>
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <FiArrowLeft />
+          Back
+        </Link>
 
-      <header className="mb-4">
-        <h1 className="text-4xl font-black">{event.title}</h1>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          disabled={isAttendLoading || isFavLoading || isOwnerActionLoading || isCommentLoading}
+        >
+          <FiRefreshCcw />
+          Refresh
+        </button>
+      </div>
 
-        <p className="opacity-70 mt-2">
-          {event.isPublic ? (
-            <IconText icon={FiGlobe}>Evento público</IconText>
-          ) : (
-            <IconText icon={FiLock}>Evento privado</IconText>
-          )}
-        </p>
-      </header>
+      {/* Header */}
+      <header className="mt-4 mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-4xl md:text-5xl font-black break-words">
+              {event.title || "Untitled event"}
+            </h1>
 
-      <section className="card bg-base-100 border rounded-2xl">
-        <div className="card-body">
-          <p className="opacity-85 leading-relaxed">
-            {event.description || "Sin descripción"}
-          </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className={`badge ${event.isPublic ? "badge-outline" : "badge-neutral"}`}>
+                <IconText icon={event.isPublic ? FiGlobe : FiLock}>
+                  {event.isPublic ? "Public" : "Private"}
+                </IconText>
+              </span>
 
-          <div className="flex flex-wrap gap-3 mt-4 text-sm opacity-85">
-            <span className="inline-flex items-center gap-2">
-              <FiMapPin />
-              {event.location || "Sin ubicación"}
-            </span>
+              <span className="badge badge-outline">
+                <IconText icon={FiCalendar}>{dateText}</IconText>
+              </span>
 
-            <span className="inline-flex items-center gap-2">
-              <FiCalendar />
-              {dateText}
-            </span>
+              <span className="badge badge-outline">
+                <IconText icon={FiMapPin}>{event.location || "No location"}</IconText>
+              </span>
+            </div>
           </div>
 
           {event.createdBy && (
-            <div className="mt-3 opacity-80">
-              <span className="font-bold">Creado por:</span>{" "}
+            <div className="text-sm opacity-75">
+              <span className="font-semibold">Created by:</span>{" "}
               {event.createdBy.name || event.createdBy.email || "—"}
             </div>
           )}
+        </div>
+      </header>
 
-          {/* Actions */}
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleToggleAttend}
-              disabled={!hasToken || isAttendLoading}
-              className="btn btn-primary"
-            >
-              {isAttendLoading ? (
-                <IconText icon={FiLoader}>Procesando…</IconText>
-              ) : isAttending ? (
-                "Salir (Leave)"
-              ) : (
-                "Inscribirme (Attend)"
+      {/* Layout: main + sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Main */}
+        <section className="lg:col-span-8">
+          <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
+            <div className="card-body gap-6">
+              <div>
+                <h2 className="text-lg font-extrabold mb-2">About this event</h2>
+                <p className="opacity-85 leading-relaxed">
+                  {event.description || "No description."}
+                </p>
+              </div>
+
+              {/* Owner actions inside main content */}
+              {isOwner && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link to={`/events/edit/${eventId}`} className="btn btn-outline gap-2">
+                    <FiEdit2 />
+                    Edit
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleDeleteEvent}
+                    disabled={isOwnerActionLoading}
+                    className="btn btn-error gap-2"
+                  >
+                    {isOwnerActionLoading ? (
+                      <>
+                        <span className="loading loading-spinner loading-sm" />
+                        Deleting…
+                      </>
+                    ) : (
+                      <>
+                        <FiTrash2 />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
-            </button>
 
-            <button
-              type="button"
-              onClick={handleToggleFavorite}
-              disabled={!hasToken || isFavLoading}
-              className="btn btn-outline"
-              aria-label={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
-              title={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
-            >
-              {isFavLoading ? (
-                <IconText icon={FiLoader}>Guardando…</IconText>
-              ) : isFavorite ? (
-                <>
-                  <AiFillHeart size={18} />
-                  Favorito
-                </>
-              ) : (
-                <>
-                  <AiOutlineHeart size={18} />
-                  Favorito
-                </>
+              {ownerError && (
+                <div className="alert alert-error">
+                  <IconText icon={FiAlertTriangle}>{ownerError}</IconText>
+                </div>
               )}
-            </button>
-
-            <span className="opacity-75 inline-flex items-center gap-2">
-              <FiUsers />
-              Asistentes: <b>{event.attendees?.length || 0}</b>
-            </span>
-
-            {!hasToken && <span className="opacity-70">(haz login para interactuar)</span>}
+            </div>
           </div>
-
-          {isOwner && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Link to={`/events/edit/${eventId}`} className="btn btn-outline">
-                <IconText icon={FiEdit2}>Editar</IconText>
-              </Link>
-
-              <button
-                type="button"
-                onClick={handleDeleteEvent}
-                disabled={isOwnerActionLoading}
-                className="btn btn-error"
-              >
-                <IconText icon={FiTrash2}>
-                  {isOwnerActionLoading ? "Borrando…" : "Borrar"}
-                </IconText>
-              </button>
-            </div>
-          )}
-
-          {attendError && (
-            <div className="alert alert-error mt-4">
-              <IconText icon={FiAlertTriangle}>{attendError}</IconText>
-            </div>
-          )}
-
-          {favError && (
-            <div className="alert alert-error mt-4">
-              <IconText icon={FiAlertTriangle}>{favError}</IconText>
-            </div>
-          )}
-
-          {ownerError && (
-            <div className="alert alert-error mt-4">
-              <IconText icon={FiAlertTriangle}>{ownerError}</IconText>
-            </div>
-          )}
 
           {/* Comments */}
-          <div className="mt-8 pt-6 border-t">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-extrabold inline-flex items-center gap-2">
-                <FiMessageCircle />
-                Comentarios <span className="opacity-75">({comments.length})</span>
-              </h2>
-            </div>
-
-            <form onSubmit={handleCreateComment} className="mt-4 grid gap-3">
-              <textarea
-                className="textarea textarea-bordered w-full"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder={hasToken ? "Escribe un comentario..." : "Haz login para comentar"}
-                disabled={!hasToken || isCommentLoading}
-                rows={3}
-              />
-
-              <button
-                type="submit"
-                disabled={!hasToken || isCommentLoading}
-                className="btn btn-primary w-fit"
-              >
-                <IconText icon={FiSend}>
-                  {isCommentLoading ? "Enviando…" : "Enviar"}
-                </IconText>
-              </button>
-            </form>
-
-            {commentError && (
-              <div className="alert alert-error mt-4">
-                <IconText icon={FiAlertTriangle}>{commentError}</IconText>
+          <div className="mt-6 card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
+            <div className="card-body">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-extrabold inline-flex items-center gap-2">
+                  <FiMessageCircle />
+                  Comments <span className="opacity-75">({comments.length})</span>
+                </h2>
               </div>
-            )}
 
-            {comments.length === 0 ? (
-              <p className="opacity-75 mt-4">Todavía no hay comentarios.</p>
-            ) : (
-              <div className="mt-4 grid gap-3">
-                {comments.map((c) => {
-                  const isMine = userIdFromToken && String(c?.author?._id) === String(userIdFromToken);
-                  const when = c?.createdAt ? new Date(c.createdAt).toLocaleString() : "";
+              <form onSubmit={handleCreateComment} className="mt-4 grid gap-3">
+                <textarea
+                  className="textarea textarea-bordered w-full"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={hasToken ? "Write a comment..." : "Log in to comment"}
+                  disabled={!hasToken || isCommentLoading}
+                  rows={3}
+                />
 
-                  return (
-                    <div key={c._id} className="card bg-base-100 border rounded-xl">
-                      <div className="card-body p-4">
-                        <div className="flex justify-between gap-4">
-                          <div className="opacity-85">
-                            <div className="font-bold text-sm">
-                              {c?.author?.name || c?.author?.email || "Usuario"}
+                <button
+                  type="submit"
+                  disabled={!hasToken || isCommentLoading}
+                  className="btn btn-primary w-fit gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+                >
+                  {isCommentLoading ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm" />
+                      Sending…
+                    </>
+                  ) : (
+                    <>
+                      <FiSend />
+                      Send
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {commentError && (
+                <div className="alert alert-error mt-4">
+                  <IconText icon={FiAlertTriangle}>{commentError}</IconText>
+                </div>
+              )}
+
+              <div className="mt-5">
+                {comments.length === 0 ? (
+                  <p className="opacity-75">No comments yet.</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {comments.map((c) => {
+                      const isMine =
+                        userIdFromToken && String(c?.author?._id) === String(userIdFromToken);
+                      const when = c?.createdAt ? new Date(c.createdAt).toLocaleString() : "";
+
+                      return (
+                        <div key={c._id} className="card bg-base-100 border border-base-300 rounded-xl">
+                          <div className="card-body p-4">
+                            <div className="flex justify-between gap-4">
+                              <div className="opacity-85">
+                                <div className="font-bold text-sm">
+                                  {c?.author?.name || c?.author?.email || "User"}
+                                </div>
+                                <div className="text-xs opacity-70">{when}</div>
+                              </div>
+
+                              {isMine && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteComment(c._id)}
+                                  className="btn btn-ghost btn-sm"
+                                  title="Delete comment"
+                                  aria-label="Delete comment"
+                                >
+                                  <FiTrash2 />
+                                </button>
+                              )}
                             </div>
-                            <div className="text-xs opacity-70">{when}</div>
+
+                            <p className="mt-3 opacity-85 leading-relaxed">{c.text}</p>
                           </div>
-
-                          {isMine && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteComment(c._id)}
-                              className="btn btn-ghost btn-sm"
-                              title="Borrar comentario"
-                              aria-label="Borrar comentario"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          )}
                         </div>
-
-                        <p className="mt-3 opacity-85 leading-relaxed">{c.text}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        {/* Sidebar */}
+        <aside className="lg:col-span-4 lg:sticky lg:top-24">
+          <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
+            <div className="card-body gap-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm opacity-75">Attendees</div>
+                <div className="text-2xl font-black">{event.attendees?.length || 0}</div>
+              </div>
+
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleAttend}
+                  disabled={!hasToken || isAttendLoading}
+                  className="btn btn-primary w-full gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+                >
+                  {isAttendLoading ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm" />
+                      Processing…
+                    </>
+                  ) : isAttending ? (
+                    "Leave"
+                  ) : (
+                    "Attend"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleFavorite}
+                  disabled={!hasToken || isFavLoading}
+                  className="btn btn-outline w-full gap-2"
+                  aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                >
+                  {isFavLoading ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm" />
+                      Saving…
+                    </>
+                  ) : isFavorite ? (
+                    <>
+                      <AiFillHeart size={18} />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <AiOutlineHeart size={18} />
+                      Save
+                    </>
+                  )}
+                </button>
+
+                {!hasToken && (
+                  <div className="text-xs opacity-70">
+                    Log in to attend, save favorites and comment.
+                  </div>
+                )}
+              </div>
+
+              {attendError && (
+                <div className="alert alert-error">
+                  <IconText icon={FiAlertTriangle}>{attendError}</IconText>
+                </div>
+              )}
+
+              {favError && (
+                <div className="alert alert-error">
+                  <IconText icon={FiAlertTriangle}>{favError}</IconText>
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+      </div>
     </PageLayout>
   );
 }

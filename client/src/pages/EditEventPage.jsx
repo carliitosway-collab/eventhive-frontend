@@ -11,6 +11,7 @@ import {
   FiType,
   FiFileText,
   FiLock,
+  FiRefreshCcw,
 } from "react-icons/fi";
 
 import eventsService from "../services/events.service";
@@ -28,15 +29,15 @@ function IconText({ icon: Icon, children, className = "" }) {
 function getNiceError(err) {
   const status = err?.response?.status;
 
-  if (status === 401) return "Tu sesión expiró o no tienes acceso. Inicia sesión de nuevo.";
-  if (status === 403) return "No tienes permisos para editar este evento.";
-  if (status === 404) return "No encontré ese evento.";
-  if (!err?.response) return "No hay conexión o el servidor no responde.";
+  if (status === 401) return "Your session expired or you don’t have access. Please log in again.";
+  if (status === 403) return "You don’t have permission to edit this event.";
+  if (status === 404) return "Event not found.";
+  if (!err?.response) return "No connection or the server is not responding.";
 
-  return err?.response?.data?.message || "Ha ocurrido un error.";
+  return err?.response?.data?.message || "Something went wrong.";
 }
 
-// ISO -> "YYYY-MM-DDTHH:MM" (local) para <input type="datetime-local" />
+// ISO -> "YYYY-MM-DDTHH:MM" (local) for <input type="datetime-local" />
 function toDateTimeLocalValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -73,7 +74,7 @@ export default function EditEventPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // userId desde JWT
+  // userId from JWT
   const userIdFromToken = useMemo(() => {
     if (!token) return null;
     try {
@@ -87,12 +88,10 @@ export default function EditEventPage() {
     }
   }, [token]);
 
-  // Guard-rail visual: owner del evento
+  // guard rail visual: event owner
   const isOwner = useMemo(() => {
     if (!userIdFromToken || !event?.createdBy) return false;
-
     const ownerId = typeof event.createdBy === "string" ? event.createdBy : event.createdBy?._id;
-
     return String(ownerId) === String(userIdFromToken);
   }, [event, userIdFromToken]);
 
@@ -126,7 +125,7 @@ export default function EditEventPage() {
   };
 
   useEffect(() => {
-    // Si por lo que sea llegas aquí sin token, fuera
+    // If you land here without a token, go to login
     if (!hasToken) {
       navigate("/login");
       return;
@@ -141,12 +140,12 @@ export default function EditEventPage() {
     setError("");
 
     if (!hasToken) {
-      setError("Necesitas login para editar eventos.");
+      setError("You must be logged in to edit events.");
       return;
     }
 
     if (!isOwner) {
-      setError("No tienes permisos para editar este evento.");
+      setError("You don’t have permission to edit this event.");
       return;
     }
 
@@ -155,7 +154,7 @@ export default function EditEventPage() {
     const cleanLoc = location.trim();
 
     if (!cleanTitle || !cleanDesc || !cleanLoc || !dateLocal) {
-      setError("Completa title, description, date y location.");
+      setError("Please fill in title, description, date and location.");
       return;
     }
 
@@ -183,16 +182,32 @@ export default function EditEventPage() {
   if (isLoading) {
     return (
       <PageLayout>
-        <Link to="/my-events" className="btn btn-ghost btn-sm mb-4">
-          <IconText icon={FiArrowLeft}>Volver</IconText>
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/my-events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiArrowLeft />
+            Back
+          </Link>
 
-        <h1 className="text-4xl font-black mb-4">
-          <IconText icon={FiEdit2}>Edit Event</IconText>
-        </h1>
+          <button
+            type="button"
+            onClick={fetchEvent}
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+            disabled
+          >
+            <FiRefreshCcw />
+            Refresh
+          </button>
+        </div>
+
+        <header className="mt-4 mb-6">
+          <h1 className="text-4xl font-black">
+            <IconText icon={FiEdit2}>Edit Event</IconText>
+          </h1>
+          <p className="opacity-70 mt-2">Loading event details…</p>
+        </header>
 
         <p className="opacity-75">
-          <IconText icon={FiLoader}>Cargando…</IconText>
+          <IconText icon={FiLoader}>Loading…</IconText>
         </p>
       </PageLayout>
     );
@@ -202,21 +217,34 @@ export default function EditEventPage() {
   if (!event) {
     return (
       <PageLayout>
-        <Link to="/my-events" className="btn btn-ghost btn-sm mb-4">
-          <IconText icon={FiArrowLeft}>Volver</IconText>
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/my-events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiArrowLeft />
+            Back
+          </Link>
 
-        <div className="card bg-base-100 border rounded-2xl">
+          <button
+            type="button"
+            onClick={fetchEvent}
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          >
+            <FiRefreshCcw />
+            Refresh
+          </button>
+        </div>
+
+        <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm mt-6">
           <div className="card-body">
             <h1 className="text-3xl font-black mb-2">
-              <IconText icon={FiAlertTriangle}>No se pudo cargar</IconText>
+              <IconText icon={FiAlertTriangle}>Could not load</IconText>
             </h1>
 
-            <p className="text-error">{error || "No encontré el evento."}</p>
+            <p className="text-error">{error || "Event not found."}</p>
 
             <div className="card-actions mt-2">
-              <button type="button" onClick={fetchEvent} className="btn btn-outline">
-                Reintentar
+              <button type="button" onClick={fetchEvent} className="btn btn-outline gap-2">
+                <FiRefreshCcw />
+                Retry
               </button>
             </div>
           </div>
@@ -229,23 +257,37 @@ export default function EditEventPage() {
   if (hasToken && !isOwner) {
     return (
       <PageLayout>
-        <Link to={`/events/${eventId}`} className="btn btn-ghost btn-sm mb-4">
-          <IconText icon={FiArrowLeft}>Volver</IconText>
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to={`/events/${eventId}`} className="btn btn-ghost btn-sm border border-base-300 gap-2">
+            <FiArrowLeft />
+            Back
+          </Link>
 
-        <div className="card bg-base-100 border rounded-2xl">
+          <button
+            type="button"
+            onClick={fetchEvent}
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          >
+            <FiRefreshCcw />
+            Refresh
+          </button>
+        </div>
+
+        <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm mt-6">
           <div className="card-body">
             <h1 className="text-3xl font-black mb-2">
-              <IconText icon={FiLock}>Sin permisos</IconText>
+              <IconText icon={FiLock}>No permission</IconText>
             </h1>
 
-            <p className="opacity-80">
-              Este evento no es tuyo, así que no puedes editarlo.
-            </p>
+            <p className="opacity-80">This event isn’t yours, so you can’t edit it.</p>
 
             <div className="card-actions mt-2">
-              <Link to={`/events/${eventId}`} className="btn btn-outline">
-                <IconText icon={FiArrowLeft}>Volver al detalle</IconText>
+              <Link
+                to={`/events/${eventId}`}
+                className="btn btn-outline gap-2"
+              >
+                <FiArrowLeft />
+                Back to details
               </Link>
             </div>
           </div>
@@ -257,23 +299,37 @@ export default function EditEventPage() {
   // FORM
   return (
     <PageLayout>
-      <Link to={`/events/${eventId}`} className="btn btn-ghost btn-sm mb-4">
-        <IconText icon={FiArrowLeft}>Volver</IconText>
-      </Link>
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4">
+        <Link to={`/events/${eventId}`} className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <FiArrowLeft />
+          Back
+        </Link>
 
-      <header className="mb-6">
+        <button
+          type="button"
+          onClick={fetchEvent}
+          className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          disabled={isSaving}
+        >
+          <FiRefreshCcw />
+          Refresh
+        </button>
+      </div>
+
+      <header className="mt-4 mb-6">
         <h1 className="text-4xl font-black">
           <IconText icon={FiEdit2}>Edit Event</IconText>
         </h1>
-        <p className="opacity-70 mt-2">Actualiza tu evento y guarda cambios</p>
+        <p className="opacity-70 mt-2">Update your event and save changes.</p>
       </header>
 
-      <section className="card bg-base-100 border rounded-2xl">
-        <div className="card-body">
-          <form onSubmit={handleSubmit} className="grid gap-4">
+      <section className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
+        <div className="card-body gap-5">
+          <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
             <label className="form-control">
               <div className="label">
-                <span className="label-text font-extrabold">
+                <span className="label-text font-bold">
                   <IconText icon={FiType}>Title</IconText>
                 </span>
               </div>
@@ -281,7 +337,7 @@ export default function EditEventPage() {
                 className="input input-bordered w-full"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Ocean Meetup"
+                placeholder="e.g. Ocean Meetup"
                 disabled={isSaving}
                 autoComplete="off"
               />
@@ -289,7 +345,7 @@ export default function EditEventPage() {
 
             <label className="form-control">
               <div className="label">
-                <span className="label-text font-extrabold">
+                <span className="label-text font-bold">
                   <IconText icon={FiFileText}>Description</IconText>
                 </span>
               </div>
@@ -297,7 +353,7 @@ export default function EditEventPage() {
                 className="textarea textarea-bordered w-full"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Cuéntanos de qué va el evento"
+                placeholder="Tell people what this event is about"
                 rows={4}
                 disabled={isSaving}
               />
@@ -306,7 +362,7 @@ export default function EditEventPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="form-control">
                 <div className="label">
-                  <span className="label-text font-extrabold">
+                  <span className="label-text font-bold">
                     <IconText icon={FiCalendar}>Date</IconText>
                   </span>
                 </div>
@@ -321,7 +377,7 @@ export default function EditEventPage() {
 
               <label className="form-control">
                 <div className="label">
-                  <span className="label-text font-extrabold">
+                  <span className="label-text font-bold">
                     <IconText icon={FiMapPin}>Location</IconText>
                   </span>
                 </div>
@@ -329,19 +385,19 @@ export default function EditEventPage() {
                   className="input input-bordered w-full"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Ej: Madrid"
+                  placeholder="e.g. Madrid"
                   disabled={isSaving}
                   autoComplete="off"
                 />
               </label>
             </div>
 
-            <label className="p-4 border rounded-xl bg-base-200/40">
+            <label className="p-4 border border-base-300 rounded-xl bg-base-200/40">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="font-extrabold">Public event</div>
+                  <div className="font-bold">Public event</div>
                   <div className="opacity-75 text-sm">
-                    {isPublic ? "Visible para todos" : "Solo tú lo ves"}
+                    {isPublic ? "Visible to everyone" : "Only you can see it"}
                   </div>
                 </div>
 
@@ -361,10 +417,19 @@ export default function EditEventPage() {
               </div>
             )}
 
-            <button type="submit" disabled={isSaving} className="btn btn-primary w-fit">
-              <IconText icon={FiSave}>
-                {isSaving ? "Guardando…" : "Save changes"}
-              </IconText>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="btn btn-primary w-fit gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+            >
+              {isSaving ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Saving…
+                </>
+              ) : (
+                <IconText icon={FiSave}>Save changes</IconText>
+              )}
             </button>
           </form>
         </div>

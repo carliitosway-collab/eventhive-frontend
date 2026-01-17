@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FiArrowLeft, FiLoader, FiAlertTriangle } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiLoader,
+  FiAlertTriangle,
+  FiRefreshCcw,
+} from "react-icons/fi";
 
 import eventsService from "../services/events.service";
 import EventCard from "../components/EventCard";
@@ -33,7 +38,7 @@ export default function AttendingPage() {
       })
       .catch((err) => {
         console.log(err);
-        setError(getNiceHttpError(err, "No pude cargar tus eventos inscritos."));
+        setError(getNiceHttpError(err, "Could not load your attending events."));
       })
       .finally(() => setIsLoading(false));
   };
@@ -44,21 +49,37 @@ export default function AttendingPage() {
 
   return (
     <PageLayout>
-      <Link to="/events" className="link link-hover inline-flex items-center gap-2 opacity-80">
-        <IconText icon={FiArrowLeft}>Volver</IconText>
-      </Link>
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <FiArrowLeft />
+          Back
+        </Link>
 
-      <header className="mt-3 mb-6">
+        <button
+          type="button"
+          onClick={fetchAttending}
+          className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          disabled={isLoading}
+        >
+          <FiRefreshCcw />
+          Refresh
+        </button>
+      </div>
+
+      <header className="mt-4 mb-6">
         <h1 className="text-4xl md:text-5xl font-black">Attending</h1>
 
         {!isLoading && !error && (
-          <p className="opacity-70 mt-2">{events.length} eventos</p>
+          <p className="opacity-70 mt-2">
+            {events.length} {events.length === 1 ? "event" : "events"}
+          </p>
         )}
       </header>
 
       {isLoading ? (
         <p className="opacity-75">
-          <IconText icon={FiLoader}>Cargando…</IconText>
+          <IconText icon={FiLoader}>Loading…</IconText>
         </p>
       ) : error ? (
         <div className="space-y-3">
@@ -66,18 +87,22 @@ export default function AttendingPage() {
             <IconText icon={FiAlertTriangle}>{error}</IconText>
           </div>
 
-          <button type="button" onClick={fetchAttending} className="btn btn-outline btn-sm">
-            Reintentar
+          <button type="button" onClick={fetchAttending} className="btn btn-outline btn-sm gap-2">
+            <FiRefreshCcw />
+            Retry
           </button>
         </div>
       ) : events.length === 0 ? (
-        <div className="card bg-base-100 border rounded-2xl">
+        <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
           <div className="card-body">
-            <p className="opacity-75">Todavía no estás inscrito en ningún evento.</p>
+            <p className="opacity-75">You’re not attending any events yet.</p>
 
             <div className="card-actions">
-              <Link to="/events" className="btn btn-primary">
-                Ver eventos
+              <Link
+                to="/events"
+                className="btn btn-primary gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+              >
+                Browse events
               </Link>
             </div>
           </div>

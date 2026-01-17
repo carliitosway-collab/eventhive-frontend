@@ -13,10 +13,11 @@ import {
 
 import eventsService from "../services/events.service";
 import { getNiceHttpError } from "../utils/httpErrors";
+import PageLayout from "../layouts/PageLayout";
 
-function IconText({ icon: Icon, children, className }) {
+function IconText({ icon: Icon, children, className = "" }) {
   return (
-    <span className={`inline-flex items-center gap-2 ${className || ""}`}>
+    <span className={`inline-flex items-center gap-2 ${className}`}>
       <Icon />
       {children}
     </span>
@@ -61,12 +62,12 @@ export default function NewEventPage() {
     const cleanLoc = location.trim();
 
     if (!cleanTitle || !cleanDesc || !date || !cleanLoc) {
-      setError("Completa title, description, date y location.");
+      setError("Please complete title, description, date and location.");
       return;
     }
 
     if (!isValidDateTimeLocal(date)) {
-      setError("La fecha no es válida. Usa el selector de fecha y hora.");
+      setError("Invalid date. Please use the date and time picker.");
       return;
     }
 
@@ -91,28 +92,33 @@ export default function NewEventPage() {
       })
       .catch((err) => {
         console.log(err);
-        setError(getNiceHttpError(err, "No pude crear el evento."));
+        setError(getNiceHttpError(err, "Could not create the event."));
       })
       .finally(() => setIsLoading(false));
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      <Link to="/events" className="btn btn-ghost btn-sm">
-        <IconText icon={FiArrowLeft}>Volver</IconText>
-      </Link>
+    <PageLayout>
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <FiArrowLeft />
+          Back
+        </Link>
+      </div>
 
-      <header className="mt-3 mb-5">
-        <h1 className="text-4xl font-black">New Event</h1>
-        <p className="opacity-70 mt-1">Crea un evento público o privado</p>
+      <header className="mt-4 mb-6">
+        <h1 className="text-4xl md:text-5xl font-black">Create event</h1>
+        <p className="opacity-70 mt-2">Create a public or private event.</p>
       </header>
 
-      <section className="card bg-base-100 border rounded-2xl shadow-sm">
-        <div className="card-body">
+      <section className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
+        <div className="card-body gap-5">
           <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-            <label className="form-control">
+            {/* Title */}
+            <label className="form-control w-full">
               <div className="label">
-                <span className="label-text font-bold">
+                <span className="label-text font-semibold">
                   <IconText icon={FiType}>Title</IconText>
                 </span>
               </div>
@@ -120,15 +126,16 @@ export default function NewEventPage() {
                 className="input input-bordered w-full"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Ocean Meetup"
+                placeholder="e.g., Ocean Meetup"
                 disabled={isLoading}
                 autoComplete="off"
               />
             </label>
 
-            <label className="form-control">
+            {/* Description */}
+            <label className="form-control w-full">
               <div className="label">
-                <span className="label-text font-bold">
+                <span className="label-text font-semibold">
                   <IconText icon={FiFileText}>Description</IconText>
                 </span>
               </div>
@@ -136,16 +143,17 @@ export default function NewEventPage() {
                 className="textarea textarea-bordered w-full"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Cuéntanos de qué va el evento"
+                placeholder="Tell people what the event is about"
                 rows={4}
                 disabled={isLoading}
               />
             </label>
 
+            {/* Date + Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="form-control">
+              <label className="form-control w-full">
                 <div className="label">
-                  <span className="label-text font-bold">
+                  <span className="label-text font-semibold">
                     <IconText icon={FiCalendar}>Date</IconText>
                   </span>
                 </div>
@@ -159,9 +167,9 @@ export default function NewEventPage() {
                 />
               </label>
 
-              <label className="form-control">
+              <label className="form-control w-full">
                 <div className="label">
-                  <span className="label-text font-bold">
+                  <span className="label-text font-semibold">
                     <IconText icon={FiMapPin}>Location</IconText>
                   </span>
                 </div>
@@ -169,13 +177,14 @@ export default function NewEventPage() {
                   className="input input-bordered w-full"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Ej: Madrid"
+                  placeholder="e.g., Madrid"
                   disabled={isLoading}
                   autoComplete="off"
                 />
               </label>
             </div>
 
+            {/* Public toggle */}
             <div className="form-control">
               <label className="label cursor-pointer justify-start gap-3">
                 <input
@@ -185,31 +194,52 @@ export default function NewEventPage() {
                   onChange={(e) => setIsPublic(e.target.checked)}
                   disabled={isLoading}
                 />
+
                 <div className="grid">
-                  <span className="font-bold">{isPublic ? "Public event" : "Private event"}</span>
+                  <span className="font-semibold">
+                    {isPublic ? "Public event" : "Private event"}
+                  </span>
                   <span className="text-sm opacity-70">
-                    {isPublic ? "Visible para todos" : "Solo tú podrás verlo"}
+                    {isPublic ? "Visible to everyone." : "Only you can see it."}
                   </span>
                 </div>
               </label>
             </div>
 
+            {/* Error */}
             {error && (
               <div className="alert alert-error">
                 <IconText icon={FiAlertTriangle}>{error}</IconText>
               </div>
             )}
 
-            <button type="submit" disabled={isLoading} className="btn btn-primary w-fit">
-              {isLoading ? (
-                <IconText icon={FiLoader}>Creating…</IconText>
-              ) : (
-                <IconText icon={FiPlus}>Create Event</IconText>
-              )}
-            </button>
+            {/* Submit */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="btn btn-primary btn-wide gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <FiPlus />
+                    Create event
+                  </>
+                )}
+              </button>
+
+              <Link to="/events" className="btn btn-ghost border border-base-300">
+                Cancel
+              </Link>
+            </div>
           </form>
         </div>
       </section>
-    </div>
+    </PageLayout>
   );
 }

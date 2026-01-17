@@ -1,18 +1,20 @@
 import { useContext } from "react";
 import { Navigate } from "react-router-dom";
 import { AuthContext } from "../context/auth.context";
+import PageLayout from "../layouts/PageLayout";
+import { FiLoader } from "react-icons/fi";
 
 function IsPrivate({ children }) {
   const { isLoggedIn, isLoading } = useContext(AuthContext);
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <PageLayout>
         <div className="flex items-center gap-3 opacity-80">
-          <span className="loading loading-spinner" />
+          <FiLoader className="animate-spin" />
           <span>Cargando…</span>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 

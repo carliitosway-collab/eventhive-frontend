@@ -20,13 +20,12 @@ function AuthProviderWrapper({ children }) {
       setIsLoggedIn(false);
       setUser(null);
       setIsLoading(false);
-      return Promise.resolve();
+      return;
     }
 
-    return authService
+    authService
       .verify()
       .then((response) => {
-        // backend devuelve req.payload en response.data
         setIsLoggedIn(true);
         setUser(response.data);
       })
@@ -43,7 +42,6 @@ function AuthProviderWrapper({ children }) {
     removeToken();
     setIsLoggedIn(false);
     setUser(null);
-    setIsLoading(false);
   };
 
   useEffect(() => {

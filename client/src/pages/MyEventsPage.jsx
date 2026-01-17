@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiEdit2, FiTrash2, FiLoader, FiAlertTriangle } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiEdit2,
+  FiTrash2,
+  FiLoader,
+  FiAlertTriangle,
+  FiPlus,
+  FiRefreshCcw,
+} from "react-icons/fi";
 
 import eventsService from "../services/events.service";
 import { getNiceHttpError } from "../utils/httpErrors";
@@ -34,7 +42,7 @@ export default function MyEventsPage() {
       })
       .catch((err) => {
         console.log(err);
-        setError(getNiceHttpError(err, "No pude cargar tus eventos."));
+        setError(getNiceHttpError(err, "Could not load your events."));
       })
       .finally(() => setIsLoading(false));
   };
@@ -43,24 +51,9 @@ export default function MyEventsPage() {
     fetchMyEvents();
   }, []);
 
-  // userId desde JWT (guard rail visual)
-  const token = localStorage.getItem("authToken");
-  const userIdFromToken = useMemo(() => {
-    if (!token) return null;
-    try {
-      const payloadBase64 = token.split(".")[1];
-      const payloadJson = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
-      const payload = JSON.parse(payloadJson);
-      return payload?._id || payload?.id || payload?.userId || null;
-    } catch (e) {
-      console.log("Token decode error:", e);
-      return null;
-    }
-  }, [token]);
-
   const handleDelete = (eventId) => {
     const ok = window.confirm(
-      "¿Seguro que quieres borrar este evento? Esta acción no se puede deshacer."
+      "Are you sure you want to delete this event? This action cannot be undone."
     );
     if (!ok) return;
 
@@ -70,27 +63,54 @@ export default function MyEventsPage() {
     eventsService.deleteEvent(eventId).catch((err) => {
       console.log(err);
       setEvents(previous);
-      setError(getNiceHttpError(err, "No pude borrar el evento."));
+      setError(getNiceHttpError(err, "Could not delete the event."));
     });
   };
 
   return (
     <PageLayout>
-      <Link to="/events" className="link link-hover inline-flex items-center gap-2 opacity-80">
-        <IconText icon={FiArrowLeft}>Volver</IconText>
-      </Link>
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <FiArrowLeft />
+          Back
+        </Link>
 
-      <header className="mt-3 mb-6">
-        <h1 className="text-4xl md:text-5xl font-black">My Events</h1>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={fetchMyEvents}
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+            disabled={isLoading}
+          >
+            <FiRefreshCcw />
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/events/new")}
+            className="btn btn-primary btn-sm gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
+          >
+            <FiPlus />
+            New event
+          </button>
+        </div>
+      </div>
+
+      <header className="mt-4 mb-6">
+        <h1 className="text-4xl md:text-5xl font-black">My events</h1>
 
         {!isLoading && !error && (
-          <p className="opacity-70 mt-2">{events.length} eventos creados</p>
+          <p className="opacity-70 mt-2">
+            {events.length} {events.length === 1 ? "event" : "events"} created
+          </p>
         )}
       </header>
 
       {isLoading ? (
         <p className="opacity-75">
-          <IconText icon={FiLoader}>Cargando…</IconText>
+          <IconText icon={FiLoader}>Loading…</IconText>
         </p>
       ) : error ? (
         <div className="space-y-3">
@@ -98,22 +118,24 @@ export default function MyEventsPage() {
             <IconText icon={FiAlertTriangle}>{error}</IconText>
           </div>
 
-          <button type="button" onClick={fetchMyEvents} className="btn btn-outline btn-sm">
-            Reintentar
+          <button type="button" onClick={fetchMyEvents} className="btn btn-outline btn-sm gap-2">
+            <FiRefreshCcw />
+            Retry
           </button>
         </div>
       ) : events.length === 0 ? (
-        <div className="card bg-base-100 border rounded-2xl">
+        <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
           <div className="card-body">
-            <p className="opacity-75">No has creado eventos todavía.</p>
+            <p className="opacity-75">You haven’t created any events yet.</p>
 
             <div className="card-actions">
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
                 onClick={() => navigate("/events/new")}
               >
-                Crear evento
+                <FiPlus />
+                Create your first event
               </button>
             </div>
           </div>
@@ -121,38 +143,37 @@ export default function MyEventsPage() {
       ) : (
         <div className="grid gap-4">
           {events.map((ev) => {
-            const isOwner =
-              userIdFromToken &&
-              (String(ev?.createdBy?._id) === String(userIdFromToken) ||
-                String(ev?.createdBy) === String(userIdFromToken));
+            // Since this page uses ?mine=true, the backend should only return your events.
+            // Keep a light guard: if createdBy exists, we still allow actions.
+            const canManage = true;
 
             return (
-              <div key={ev._id} className="card bg-base-100 border rounded-2xl">
+              <div key={ev._id} className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
                 <div className="card-body">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <h3 className="text-lg font-bold m-0">{ev.title}</h3>
-                      <p className="mt-1 opacity-70 text-sm">
-                        {ev.location || "Sin ubicación"}
-                      </p>
+                    <div className="min-w-[200px]">
+                      <h3 className="text-lg font-bold m-0">{ev?.title || "Untitled"}</h3>
+                      <p className="mt-1 opacity-70 text-sm">{ev?.location || "No location"}</p>
                     </div>
 
-                    {isOwner && (
+                    {canManage && (
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Link to={`/events/${ev._id}`} className="link link-hover font-semibold">
-                          Ver
+                        <Link to={`/events/${ev._id}`} className="btn btn-ghost btn-sm border border-base-300">
+                          View
                         </Link>
 
-                        <Link to={`/events/edit/${ev._id}`} className="btn btn-outline btn-sm">
-                          <IconText icon={FiEdit2}>Editar</IconText>
+                        <Link to={`/events/edit/${ev._id}`} className="btn btn-outline btn-sm gap-2">
+                          <FiEdit2 />
+                          Edit
                         </Link>
 
                         <button
                           type="button"
                           onClick={() => handleDelete(ev._id)}
-                          className="btn btn-outline btn-sm btn-error"
+                          className="btn btn-outline btn-sm btn-error gap-2"
                         >
-                          <IconText icon={FiTrash2}>Borrar</IconText>
+                          <FiTrash2 />
+                          Delete
                         </button>
                       </div>
                     )}

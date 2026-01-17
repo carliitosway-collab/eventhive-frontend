@@ -1,12 +1,12 @@
 import api from "./api.service";
 
 const eventsService = {
-  // Público
+  // Public
   getPublicEvents: (params = {}) => api.get("/events", { params }),
 
   getEventDetails: (eventId) => api.get(`/events/${eventId}`),
 
-  // Privados (requieren token -> interceptor lo añade)
+  // Private (token added by interceptor)
   createEvent: (payload) => api.post("/events", payload),
 
   updateEvent: (eventId, payload) => api.put(`/events/${eventId}`, payload),
