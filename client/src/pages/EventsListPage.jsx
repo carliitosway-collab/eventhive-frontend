@@ -314,14 +314,13 @@ export default function EventsListPage() {
               )}
             </div>
           )}
-
           {/* Collapsible filters */}
+
           {isFiltersOpen && (
             <div className="card bg-base-100 border border-base-300 rounded-2xl">
               <div className="card-body p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                   {/* FROM */}
-
                   <label className="form-control w-full">
                     <div className="flex items-center gap-3">
                       <span className="font-bold flex items-center gap-2">
@@ -334,21 +333,20 @@ export default function EventsListPage() {
                       type="date"
                       value={from}
                       onChange={(e) => setFrom(e.target.value)}
-                      className="
-        input input-bordered
-        rounded-full
-        h-9 min-h-9
-        px-4
-        bg-base-100
-        shadow-sm
-        border border-base-300
-        focus:outline-none
-        focus:border-primary/60
-        focus:shadow-md
-        w-fit
-        min-w-[160px]
-        max-w-[180px]
-      "
+                      className="input input-bordered
+                 rounded-full
+                 h-9 min-h-9
+                 px-4
+                 bg-base-100
+                 shadow-sm
+                 border border-base-300
+                 focus:outline-none
+                 focus:border-primary/60
+                 focus:shadow-md
+                 w-fit
+                 min-w-[160px]
+                 max-w-[180px]
+                 "
                     />
                   </label>
                   {/* TO */}
@@ -365,41 +363,39 @@ export default function EventsListPage() {
                       value={to}
                       onChange={(e) => setTo(e.target.value)}
                       min={from || undefined}
-                      className="
-   input input-bordered
-   rounded-full
-   h-9 min-h-9
-     px-4
-    bg-base-100
-     shadow-sm
-    border border-base-300
-    focus:outline-none
-    focus:border-primary/60
-  focus:shadow-md
-   w-fit
-  min-w-[160px]
-   max-w-[180px]
-      "
+                      className=" input input-bordered
+                rounded-full
+                h-9 min-h-9
+                px-4
+                bg-base-100
+                shadow-sm
+                border border-base-300
+                focus:outline-none
+                focus:border-primary/60
+                focus:shadow-md
+                w-fit
+                min-w-[160px]
+                max-w-[180px]
+                "
                     />
                   </label>
                   {/* APPLY */}
                   <div className="flex items-center md:justify-end justify-center">
                     <button
                       type="submit"
-                      className="
-   btn
-   rounded-full
-    h-9 min-h-9
-    px-6
-   text-sm font-semibold
-    bg-primary text-primary-content
-    border border-primary/70
-    shadow-sm
-    hover:shadow-md hover:brightness-95
-    active:scale-95
-    transition
-     w-fit
-     "
+                      className="btn
+                rounded-full
+                h-9 min-h-9
+                px-6
+                text-sm font-semibold
+                bg-primary text-primary-content
+                border border-primary/70
+                shadow-sm
+                hover:shadow-md hover:brightness-95
+                active:scale-95
+                transition
+                w-fit
+                "
                     >
                       {t?.apply || "Apply"}
                     </button>
