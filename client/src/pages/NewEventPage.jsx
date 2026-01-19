@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
-  FiLoader,
   FiAlertTriangle,
   FiPlus,
   FiCalendar,
@@ -44,6 +43,7 @@ function nowAsMinDateTimeLocal() {
 export default function NewEventPage() {
   const navigate = useNavigate();
 
+  // required
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
@@ -71,15 +71,17 @@ export default function NewEventPage() {
       return;
     }
 
-    setIsLoading(true);
+    const isoDate = new Date(date).toISOString();
 
     const payload = {
       title: cleanTitle,
       description: cleanDesc,
-      date: new Date(date).toISOString(),
+      date: isoDate,
       location: cleanLoc,
       isPublic,
     };
+
+    setIsLoading(true);
 
     eventsService
       .createEvent(payload)
@@ -99,9 +101,11 @@ export default function NewEventPage() {
 
   return (
     <PageLayout>
-      {/* Top bar */}
       <div className="flex items-center justify-between gap-4">
-        <Link to="/events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+        <Link
+          to="/events"
+          className="btn btn-ghost btn-sm border border-base-300 gap-2"
+        >
           <FiArrowLeft />
           Back
         </Link>
@@ -115,7 +119,6 @@ export default function NewEventPage() {
       <section className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
         <div className="card-body gap-5">
           <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-            {/* Title */}
             <label className="form-control w-full">
               <div className="label">
                 <span className="label-text font-semibold">
@@ -132,7 +135,6 @@ export default function NewEventPage() {
               />
             </label>
 
-            {/* Description */}
             <label className="form-control w-full">
               <div className="label">
                 <span className="label-text font-semibold">
@@ -149,7 +151,6 @@ export default function NewEventPage() {
               />
             </label>
 
-            {/* Date + Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="form-control w-full">
                 <div className="label">
@@ -184,7 +185,6 @@ export default function NewEventPage() {
               </label>
             </div>
 
-            {/* Public toggle */}
             <div className="form-control">
               <label className="label cursor-pointer justify-start gap-3">
                 <input
@@ -206,14 +206,12 @@ export default function NewEventPage() {
               </label>
             </div>
 
-            {/* Error */}
             {error && (
               <div className="alert alert-error">
                 <IconText icon={FiAlertTriangle}>{error}</IconText>
               </div>
             )}
 
-            {/* Submit */}
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="submit"
@@ -233,7 +231,10 @@ export default function NewEventPage() {
                 )}
               </button>
 
-              <Link to="/events" className="btn btn-ghost border border-base-300">
+              <Link
+                to="/events"
+                className="btn btn-ghost border border-base-300"
+              >
                 Cancel
               </Link>
             </div>

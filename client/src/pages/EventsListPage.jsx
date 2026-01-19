@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 
 import eventsService from "../services/events.service";
+import favoritesService from "../services/favorites.service";
 import EventCard from "../components/EventCard";
 import PageLayout from "../layouts/PageLayout";
 import { LangContext } from "../context/lang.context";
@@ -55,6 +56,17 @@ export default function EventsListPage() {
   const [error, setError] = useState("");
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    variant: "success", // "success" | "info" | "error"
+    actionLabel: "",
+    actionHref: "",
+  });
+
+  // ✅ Favorites state
+  const [favoriteIds, setFavoriteIds] = useState(() => new Set());
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState(null);
 
   // Draft filters
   const [q, setQ] = useState("");
@@ -144,12 +156,35 @@ export default function EventsListPage() {
       });
   };
 
+  // ✅ Load favorites once (if user is logged in)
+  const loadFavorites = () => {
+    favoritesService
+      .getMyFavorites()
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+
+        const ids = new Set(
+          list.map((e) => (typeof e === "string" ? e : e?._id)).filter(Boolean),
+        );
+
+        setFavoriteIds(ids);
+      })
+      .catch(() => {
+        // If not logged in or token missing, we just keep favorites empty
+        setFavoriteIds(new Set());
+      });
+  };
+
   useEffect(() => {
     fetchPage(1, "replace");
+    loadFavorites();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRefresh = () => fetchPage(1, "replace");
+  const handleRefresh = () => {
+    fetchPage(1, "replace");
+    loadFavorites();
+  };
 
   const handleLoadMore = () => {
     if (!canLoadMore || isLoadingMore) return;
@@ -183,11 +218,132 @@ export default function EventsListPage() {
     fetchPage(1, "replace", nextApplied);
   };
 
+  // ✅ Toggle favorite (POST/DELETE)
+  const handleToggleFavorite = (eventId) => {
+    if (!eventId) return;
+
+    const isFav = favoriteIds.has(eventId);
+    setTogglingFavoriteId(eventId);
+
+    const req = isFav
+      ? favoritesService.removeFavorite(eventId)
+      : favoritesService.addFavorite(eventId);
+
+    req
+      .then(() => {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (isFav) next.delete(eventId);
+          else next.add(eventId);
+          return next;
+        });
+      })
+      .catch((err) => {
+        const status = err?.response?.status;
+
+        if (status === 401) {
+          showToast({
+            message: t?.loginToSave || "Login required to save events",
+            variant: "error",
+            actionLabel: t?.login || "Login",
+            actionHref: "/login",
+          });
+          return;
+        }
+
+        console.log(err);
+        showToast({
+          message: t?.somethingWrong || "Something went wrong",
+          variant: "error",
+        });
+      })
+
+      .finally(() => setTogglingFavoriteId(null));
+  };
+
+  const showToast = ({
+    message,
+    variant = "success",
+    actionLabel = "",
+    actionHref = "",
+  }) => {
+    setToast({ show: true, message, variant, actionLabel, actionHref });
+
+    window.setTimeout(() => {
+      setToast({
+        show: false,
+        message: "",
+        variant: "success",
+        actionLabel: "",
+        actionHref: "",
+      });
+    }, 2500);
+  };
+
+  // ✅ Share handler placeholder (we'll implement Web Share next)
+  const handleShare = async (event) => {
+    if (!event?._id) return;
+
+    const url = `${window.location.origin}/events/${event._id}`;
+    const title = event?.title || "Event";
+    const text = event?.description || "";
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        showToast({
+          message: t?.shared || "Ready to share",
+          variant: "success",
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        showToast({
+          message: t?.linkCopied || "Link copied",
+          variant: "success",
+        });
+        return;
+      }
+
+      window.prompt(t?.copyLink || "Copy link:", url);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const chipClass =
     "badge badge-outline border-base-300 gap-2 py-3 px-3 rounded-2xl";
 
   return (
     <PageLayout>
+      {toast.show && (
+        <div className="toast toast-top toast-end z-50">
+          <div
+            className={`alert ${
+              toast.variant === "error"
+                ? "alert-error"
+                : toast.variant === "info"
+                  ? "alert-info"
+                  : "alert-success"
+            } shadow-lg px-4 py-2 text-sm rounded-full flex items-center gap-3`}
+          >
+            <span>{toast.message}</span>
+
+            {toast.actionLabel && toast.actionHref && (
+              <a
+                href={toast.actionHref}
+                className="btn btn-xs rounded-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {toast.actionLabel}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="mb-5">
         <div className="flex items-start justify-between gap-4">
@@ -247,7 +403,6 @@ export default function EventsListPage() {
                 </button>
               </div>
             </div>
-
             {/* Keep the rest of the toolbar exactly as it was, aligned to the right */}
             <div className="ml-auto flex flex-wrap items-center gap-2 justify-end">
               <button
@@ -257,7 +412,6 @@ export default function EventsListPage() {
               >
                 <IconText icon={FiSliders}>{t?.filters || "Filters"}</IconText>
               </button>
-
               {hasActiveFilters && (
                 <button
                   type="button"
@@ -315,7 +469,6 @@ export default function EventsListPage() {
             </div>
           )}
           {/* Collapsible filters */}
-
           {isFiltersOpen && (
             <div className="card bg-base-100 border border-base-300 rounded-2xl">
               <div className="card-body p-4">
@@ -328,25 +481,11 @@ export default function EventsListPage() {
                         {t?.from || "From"}
                       </span>
                     </div>
-
                     <input
                       type="date"
                       value={from}
                       onChange={(e) => setFrom(e.target.value)}
-                      className="input input-bordered
-                 rounded-full
-                 h-9 min-h-9
-                 px-4
-                 bg-base-100
-                 shadow-sm
-                 border border-base-300
-                 focus:outline-none
-                 focus:border-primary/60
-                 focus:shadow-md
-                 w-fit
-                 min-w-[160px]
-                 max-w-[180px]
-                 "
+                      className="input input-bordered rounded-full h-9 min-h-9 px-4 bg-base-100 shadow-sm border border-base-300 focus:outline-none focus:border-primary/60 focus:shadow-md w-fit min-w-[160px] max-w-[180px]"
                     />
                   </label>
                   {/* TO */}
@@ -357,50 +496,23 @@ export default function EventsListPage() {
                         {t?.to || "To"}
                       </span>
                     </div>
-
                     <input
                       type="date"
                       value={to}
                       onChange={(e) => setTo(e.target.value)}
                       min={from || undefined}
-                      className=" input input-bordered
-                rounded-full
-                h-9 min-h-9
-                px-4
-                bg-base-100
-                shadow-sm
-                border border-base-300
-                focus:outline-none
-                focus:border-primary/60
-                focus:shadow-md
-                w-fit
-                min-w-[160px]
-                max-w-[180px]
-                "
+                      className="input input-bordered rounded-full h-9 min-h-9 px-4 bg-base-100 shadow-sm border border-base-300 focus:outline-none focus:border-primary/60 focus:shadow-md w-fit min-w-[160px] max-w-[180px]"
                     />
                   </label>
                   {/* APPLY */}
                   <div className="flex items-center md:justify-end justify-center">
                     <button
                       type="submit"
-                      className="btn
-                rounded-full
-                h-9 min-h-9
-                px-6
-                text-sm font-semibold
-                bg-primary text-primary-content
-                border border-primary/70
-                shadow-sm
-                hover:shadow-md hover:brightness-95
-                active:scale-95
-                transition
-                w-fit
-                "
+                      className="btn rounded-full h-9 min-h-9 px-6 text-sm font-semibold bg-primary text-primary-content border border-primary/70 shadow-sm hover:shadow-md hover:brightness-95 active:scale-95 transition w-fit"
                     >
                       {t?.apply || "Apply"}
                     </button>
                   </div>
-
                   {/* TIP */}
                   <p className="text-sm opacity-60 leading-snug md:col-span-3">
                     {t?.tip || "Tip: search first, then narrow by dates."}
@@ -450,7 +562,14 @@ export default function EventsListPage() {
           {/* Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
             {events.map((ev) => (
-              <EventCard key={ev._id} event={ev} />
+              <EventCard
+                key={ev._id}
+                event={ev}
+                isFavorited={favoriteIds.has(ev._id)}
+                isTogglingFavorite={togglingFavoriteId === ev._id}
+                onToggleFavorite={handleToggleFavorite}
+                onShare={handleShare}
+              />
             ))}
           </div>
 

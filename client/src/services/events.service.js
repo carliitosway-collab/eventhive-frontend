@@ -20,6 +20,12 @@ const eventsService = {
   getMyEvents: () => api.get("/events", { params: { mine: true } }),
 
   getAttendingEvents: () => api.get("/events", { params: { attending: true } }),
+
+  // NEW: photos (owner only)
+  addPhoto: (eventId, url) => api.post(`/events/${eventId}/photos`, { url }),
+
+  removePhoto: (eventId, url) =>
+    api.delete(`/events/${eventId}/photos`, { data: { url } }),
 };
 
 export default eventsService;

@@ -29,7 +29,8 @@ function IconText({ icon: Icon, children, className = "" }) {
 function getNiceError(err) {
   const status = err?.response?.status;
 
-  if (status === 401) return "Your session expired or you don’t have access. Please log in again.";
+  if (status === 401)
+    return "Your session expired or you don’t have access. Please log in again.";
   if (status === 403) return "You don’t have permission to edit this event.";
   if (status === 404) return "Event not found.";
   if (!err?.response) return "No connection or the server is not responding.";
@@ -37,7 +38,6 @@ function getNiceError(err) {
   return err?.response?.data?.message || "Something went wrong.";
 }
 
-// ISO -> "YYYY-MM-DDTHH:MM" (local) for <input type="datetime-local" />
 function toDateTimeLocalValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -74,12 +74,13 @@ export default function EditEventPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // userId from JWT
   const userIdFromToken = useMemo(() => {
     if (!token) return null;
     try {
       const payloadBase64 = token.split(".")[1];
-      const payloadJson = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
+      const payloadJson = atob(
+        payloadBase64.replace(/-/g, "+").replace(/_/g, "/"),
+      );
       const payload = JSON.parse(payloadJson);
       return payload?._id || payload?.id || payload?.userId || null;
     } catch (e) {
@@ -88,10 +89,12 @@ export default function EditEventPage() {
     }
   }, [token]);
 
-  // guard rail visual: event owner
   const isOwner = useMemo(() => {
     if (!userIdFromToken || !event?.createdBy) return false;
-    const ownerId = typeof event.createdBy === "string" ? event.createdBy : event.createdBy?._id;
+    const ownerId =
+      typeof event.createdBy === "string"
+        ? event.createdBy
+        : event.createdBy?._id;
     return String(ownerId) === String(userIdFromToken);
   }, [event, userIdFromToken]);
 
@@ -125,12 +128,10 @@ export default function EditEventPage() {
   };
 
   useEffect(() => {
-    // If you land here without a token, go to login
     if (!hasToken) {
       navigate("/login");
       return;
     }
-
     fetchEvent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
@@ -178,19 +179,20 @@ export default function EditEventPage() {
       .finally(() => setIsSaving(false));
   };
 
-  // LOADING
   if (isLoading) {
     return (
       <PageLayout>
         <div className="flex items-center justify-between gap-4">
-          <Link to="/my-events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <Link
+            to="/my-events"
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          >
             <FiArrowLeft />
             Back
           </Link>
 
           <button
             type="button"
-            onClick={fetchEvent}
             className="btn btn-ghost btn-sm border border-base-300 gap-2"
             disabled
           >
@@ -213,12 +215,14 @@ export default function EditEventPage() {
     );
   }
 
-  // ERROR + no event
   if (!event) {
     return (
       <PageLayout>
         <div className="flex items-center justify-between gap-4">
-          <Link to="/my-events" className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <Link
+            to="/my-events"
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          >
             <FiArrowLeft />
             Back
           </Link>
@@ -242,7 +246,11 @@ export default function EditEventPage() {
             <p className="text-error">{error || "Event not found."}</p>
 
             <div className="card-actions mt-2">
-              <button type="button" onClick={fetchEvent} className="btn btn-outline gap-2">
+              <button
+                type="button"
+                onClick={fetchEvent}
+                className="btn btn-outline gap-2"
+              >
                 <FiRefreshCcw />
                 Retry
               </button>
@@ -253,12 +261,14 @@ export default function EditEventPage() {
     );
   }
 
-  // NOT OWNER (guard rail visual)
   if (hasToken && !isOwner) {
     return (
       <PageLayout>
         <div className="flex items-center justify-between gap-4">
-          <Link to={`/events/${eventId}`} className="btn btn-ghost btn-sm border border-base-300 gap-2">
+          <Link
+            to={`/events/${eventId}`}
+            className="btn btn-ghost btn-sm border border-base-300 gap-2"
+          >
             <FiArrowLeft />
             Back
           </Link>
@@ -279,13 +289,12 @@ export default function EditEventPage() {
               <IconText icon={FiLock}>No permission</IconText>
             </h1>
 
-            <p className="opacity-80">This event isn’t yours, so you can’t edit it.</p>
+            <p className="opacity-80">
+              This event isn’t yours, so you can’t edit it.
+            </p>
 
             <div className="card-actions mt-2">
-              <Link
-                to={`/events/${eventId}`}
-                className="btn btn-outline gap-2"
-              >
+              <Link to={`/events/${eventId}`} className="btn btn-outline gap-2">
                 <FiArrowLeft />
                 Back to details
               </Link>
@@ -296,12 +305,13 @@ export default function EditEventPage() {
     );
   }
 
-  // FORM
   return (
     <PageLayout>
-      {/* Top bar */}
       <div className="flex items-center justify-between gap-4">
-        <Link to={`/events/${eventId}`} className="btn btn-ghost btn-sm border border-base-300 gap-2">
+        <Link
+          to={`/events/${eventId}`}
+          className="btn btn-ghost btn-sm border border-base-300 gap-2"
+        >
           <FiArrowLeft />
           Back
         </Link>
