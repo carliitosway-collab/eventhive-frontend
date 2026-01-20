@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
   FiMapPin,
@@ -11,7 +11,7 @@ import {
   FiSend,
   FiEdit2,
   FiAlertTriangle,
-  FiRefreshCcw,
+  FiX,
 } from "react-icons/fi";
 import { AiOutlineHeart, AiFillHeart } from "react-icons/ai";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +21,7 @@ import favoritesService from "../services/favorites.service";
 import commentsService from "../services/comments.service";
 import eventsService from "../services/events.service";
 import PageLayout from "../layouts/PageLayout";
+import useCleanObjectIdParam from "../hooks/useCleanObjectIdParam";
 
 function IconText({ icon: Icon, children, className = "" }) {
   return (
@@ -79,8 +80,13 @@ function buildMapEmbedUrlFromLocation(location) {
 }
 
 export default function EventDetailsPage() {
-  const { eventId } = useParams();
   const navigate = useNavigate();
+
+  // ✅ unificado: limpia /events/:eventId aunque venga con basura en la URL
+  const { id: cleanEventId, isValid } = useCleanObjectIdParam({
+    paramName: "eventId",
+    basePath: "/events",
+  });
 
   const [event, setEvent] = useState(null);
 
@@ -111,11 +117,19 @@ export default function EventDetailsPage() {
   // owner actions
   const [isOwnerActionLoading, setIsOwnerActionLoading] = useState(false);
   const [ownerError, setOwnerError] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const token = localStorage.getItem("authToken");
   const hasToken = !!token;
 
   const commentInputRef = useRef(null);
+
+  const PILL_STATIC =
+    "inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-100 px-4 py-1.5 text-sm font-medium shadow-sm";
+  const PILL_BTN =
+    "inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-100 px-4 py-1.5 text-sm font-medium shadow-sm transition hover:bg-base-200 hover:shadow-md active:scale-[0.98]";
+  const PILL_BTN_DANGER =
+    "inline-flex items-center gap-2 rounded-full border border-error/30 bg-base-100 px-4 py-1.5 text-sm font-semibold text-error shadow-sm transition hover:bg-error/10 hover:shadow-md active:scale-[0.98]";
 
   // userId from JWT
   const userIdFromToken = useMemo(() => {
@@ -134,7 +148,6 @@ export default function EventDetailsPage() {
     }
   }, [token]);
 
-  // ✅ persistent like based on backend "likes" array
   const isCommentLiked = (comment) => {
     if (!userIdFromToken) return false;
 
@@ -190,11 +203,17 @@ export default function EventDetailsPage() {
   };
 
   const fetchEvent = () => {
+    if (!isValid) {
+      setIsLoading(false);
+      setError("Invalid eventId");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
     eventsService
-      .getEventDetails(eventId)
+      .getEventDetails(cleanEventId)
       .then((res) => {
         const payload = res.data?.data ?? res.data;
         const eventData = payload?.event ?? payload;
@@ -208,10 +227,12 @@ export default function EventDetailsPage() {
   };
 
   const fetchComments = () => {
+    if (!isValid) return;
+
     setCommentError("");
 
     commentsService
-      .getByEvent(eventId)
+      .getByEvent(cleanEventId)
       .then((list) => setComments(list))
       .catch((err) => {
         console.log(err);
@@ -236,7 +257,7 @@ export default function EventDetailsPage() {
     fetchComments();
     fetchFavorites();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
+  }, [cleanEventId, isValid]);
 
   const isAttending = useMemo(() => {
     if (!event?.attendees || !userIdFromToken) return false;
@@ -297,8 +318,8 @@ export default function EventDetailsPage() {
     setAttendError("");
 
     const request = isAttending
-      ? eventsService.leaveEvent(eventId)
-      : eventsService.joinEvent(eventId);
+      ? eventsService.leaveEvent(cleanEventId)
+      : eventsService.joinEvent(cleanEventId);
 
     request
       .then(() => fetchEvent())
@@ -318,7 +339,7 @@ export default function EventDetailsPage() {
     setIsFavLoading(true);
     setFavError("");
 
-    const targetId = event?._id || eventId;
+    const targetId = event?._id || cleanEventId;
 
     const request = isFavorite
       ? favoritesService.removeFavorite(targetId)
@@ -351,7 +372,7 @@ export default function EventDetailsPage() {
     setCommentError("");
 
     commentsService
-      .create({ text: clean, eventId })
+      .create({ text: clean, eventId: cleanEventId })
       .then(() => {
         setCommentText("");
         setReplyTo(null);
@@ -381,7 +402,7 @@ export default function EventDetailsPage() {
       });
   };
 
-  const handleDeleteEvent = () => {
+  const handleDeleteClick = () => {
     setOwnerError("");
 
     if (!hasToken) {
@@ -394,27 +415,23 @@ export default function EventDetailsPage() {
       return;
     }
 
-    const ok = window.confirm(
-      "Are you sure you want to delete this event? This cannot be undone.",
-    );
-    if (!ok) return;
+    setShowDeleteModal(true);
+  };
 
+  const confirmDelete = () => {
+    setOwnerError("");
     setIsOwnerActionLoading(true);
 
     eventsService
-      .deleteEvent(eventId)
+      .deleteEvent(cleanEventId)
       .then(() => navigate("/my-events"))
       .catch((err) => {
-        console.log(err);
         setOwnerError(getNiceError(err));
       })
-      .finally(() => setIsOwnerActionLoading(false));
-  };
-
-  const handleRefresh = () => {
-    fetchEvent();
-    fetchComments();
-    fetchFavorites();
+      .finally(() => {
+        setIsOwnerActionLoading(false);
+        setShowDeleteModal(false);
+      });
   };
 
   if (isLoading) {
@@ -428,15 +445,6 @@ export default function EventDetailsPage() {
             <FiArrowLeft />
             Back
           </Link>
-
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm border border-base-300 gap-2"
-            disabled
-          >
-            <FiRefreshCcw />
-            Refresh
-          </button>
         </div>
 
         <header className="mt-4 mb-6">
@@ -462,15 +470,6 @@ export default function EventDetailsPage() {
             <FiArrowLeft />
             Back
           </Link>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="btn btn-ghost btn-sm border border-base-300 gap-2"
-          >
-            <FiRefreshCcw />
-            Refresh
-          </button>
         </div>
 
         <header className="mt-4 mb-6">
@@ -495,15 +494,6 @@ export default function EventDetailsPage() {
             <FiArrowLeft />
             Back
           </Link>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="btn btn-ghost btn-sm border border-base-300 gap-2"
-          >
-            <FiRefreshCcw />
-            Refresh
-          </button>
         </div>
 
         <header className="mt-4 mb-2">
@@ -525,22 +515,6 @@ export default function EventDetailsPage() {
           <FiArrowLeft />
           Back
         </Link>
-
-        <button
-          type="button"
-          onClick={handleRefresh}
-          className="btn btn-ghost btn-sm border border-base-300 gap-2"
-          disabled={
-            isAttendLoading ||
-            isFavLoading ||
-            isOwnerActionLoading ||
-            isCommentLoading ||
-            !!togglingLikeId
-          }
-        >
-          <FiRefreshCcw />
-          Refresh
-        </button>
       </div>
 
       <header className="mt-4 mb-6">
@@ -552,7 +526,7 @@ export default function EventDetailsPage() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium shadow-sm ${
+                className={`${PILL_STATIC}${
                   event.isPublic
                     ? "border-base-300"
                     : "border-base-300 bg-base-200/70"
@@ -563,11 +537,11 @@ export default function EventDetailsPage() {
                 </IconText>
               </span>
 
-              <span className="inline-flex items-center gap-2 rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium shadow-sm">
+              <span className={PILL_STATIC}>
                 <IconText icon={FiCalendar}>{dateText}</IconText>
               </span>
 
-              <span className="inline-flex items-center gap-2 rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium shadow-sm">
+              <span className={PILL_STATIC}>
                 <IconText icon={FiMapPin}>
                   {event.location || "No location"}
                 </IconText>
@@ -576,7 +550,7 @@ export default function EventDetailsPage() {
               <button
                 type="button"
                 onClick={handleToggleAttend}
-                className="inline-flex items-center gap-2 rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium shadow-sm hover:bg-base-200 transition"
+                className={PILL_BTN}
               >
                 Attend
               </button>
@@ -584,11 +558,7 @@ export default function EventDetailsPage() {
               <button
                 type="button"
                 onClick={handleToggleFavorite}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium shadow-sm transition ${
-                  isFavorite
-                    ? "bg-base-200 border-base-300"
-                    : "border-base-300 hover:bg-base-200"
-                }`}
+                className={`${PILL_BTN}${isFavorite ? "bg-base-200 border-base-300" : "border-base-300 hover:bg-base-200"}`}
               >
                 {isFavorite ? "Saved" : "Save"}
               </button>
@@ -634,8 +604,8 @@ export default function EventDetailsPage() {
               {isOwner && (
                 <div className="flex flex-wrap items-center gap-3">
                   <Link
-                    to={`/events/edit/${eventId}`}
-                    className="btn btn-outline gap-2"
+                    to={`/events/edit/${cleanEventId}`}
+                    className="btn rounded-full px-4 h-9 min-h-9 text-xs font-medium gap-2 bg-base-100 border border-base-300 shadow-sm hover:shadow-md hover:bg-base-200 transition active:scale-[0.97]"
                   >
                     <FiEdit2 />
                     Edit
@@ -643,9 +613,9 @@ export default function EventDetailsPage() {
 
                   <button
                     type="button"
-                    onClick={handleDeleteEvent}
+                    onClick={handleDeleteClick}
                     disabled={isOwnerActionLoading}
-                    className="btn btn-error gap-2"
+                    className="btn rounded-full px-4 h-9 min-h-9 text-xs font-semibold gap-2 bg-error/10 text-error border border-error/30 shadow-sm hover:shadow-md hover:bg-error/20 transition active:scale-[0.97]"
                   >
                     {isOwnerActionLoading ? (
                       <>
@@ -670,7 +640,71 @@ export default function EventDetailsPage() {
             </div>
           </div>
 
-          {/* Location */}
+          {showDeleteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-xl rounded-3xl bg-base-100 p-6 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-2xl font-extrabold">Delete event</h3>
+                    <p className="mt-1 text-sm opacity-70">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={PILL_BTN}
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={isOwnerActionLoading}
+                    aria-label="Close"
+                  >
+                    <FiX />
+                  </button>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center gap-2 text-base">
+                  <span>Are you sure you want to delete</span>
+                  <span
+                    className={`${PILL_STATIC} bg-base-200 px-4 py-2 text-base`}
+                  >
+                    {event?.title || "this event"}
+                  </span>
+                  <span>?</span>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    className={PILL_BTN}
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={isOwnerActionLoading}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`${PILL_BTN_DANGER} bg-error/10`}
+                    onClick={confirmDelete}
+                    disabled={isOwnerActionLoading}
+                  >
+                    {isOwnerActionLoading ? (
+                      <>
+                        <span className="loading loading-spinner loading-sm" />
+                        Deleting…
+                      </>
+                    ) : (
+                      <>
+                        <FiTrash2 />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
             <div className="card-body gap-4">
               <h2 className="text-lg font-extrabold inline-flex items-center gap-2">
@@ -698,7 +732,6 @@ export default function EventDetailsPage() {
             </div>
           </div>
 
-          {/* Comments */}
           <div className="mt-6 card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
             <div className="card-body">
               <div className="flex items-center justify-between gap-4">
@@ -754,7 +787,7 @@ export default function EventDetailsPage() {
                   <button
                     type="submit"
                     disabled={!hasToken || isCommentLoading}
-                    className="btn rounded-2xl h-11 min-h-11 px-5 w-full md:w-fit gap-2 bg-base-200 border border-base-300 text-base-content font-medium shadow-sm hover:shadow-md hover:bg-base-300 transition active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 rounded-full border border-base-300 px-5 py-2 text-sm font-medium shadow-sm hover:bg-base-200 hover:shadow-md transition active:scale-[0.97]"
                   >
                     {isCommentLoading ? (
                       <span className="loading loading-spinner loading-sm" />
@@ -802,11 +835,32 @@ export default function EventDetailsPage() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <div className="font-semibold text-sm truncate">
-                                  {c?.author?.name ||
+                                {(() => {
+                                  const authorName =
+                                    c?.author?.name ||
                                     c?.author?.email ||
-                                    "User"}
-                                </div>
+                                    "User";
+
+                                  const authorId =
+                                    typeof c?.author === "string"
+                                      ? c.author
+                                      : c?.author?._id;
+
+                                  return authorId ? (
+                                    <Link
+                                      to={`/users/${authorId}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="font-semibold text-sm truncate hover:underline text-left"
+                                      title="View user"
+                                    >
+                                      {authorName}
+                                    </Link>
+                                  ) : (
+                                    <div className="font-semibold text-sm truncate">
+                                      {authorName}
+                                    </div>
+                                  );
+                                })()}
 
                                 {when && (
                                   <div className="text-xs opacity-60">
@@ -846,6 +900,22 @@ export default function EventDetailsPage() {
                                 ) : (
                                   <AiOutlineHeart size={16} />
                                 )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `/comments/${c._id}?eventId=${cleanEventId}`,
+                                    { state: { comment: c } },
+                                  );
+                                }}
+                                className="btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 shadow-sm text-base-content/70 hover:bg-base-200/50 hover:text-base-content"
+                                title="View comment"
+                                aria-label="View comment"
+                              >
+                                <FiMessageCircle size={15} />
                               </button>
 
                               {isMine && (

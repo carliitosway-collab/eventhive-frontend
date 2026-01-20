@@ -2,7 +2,6 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import {
   FiLoader,
   FiAlertTriangle,
-  FiRefreshCcw,
   FiChevronDown,
   FiSearch,
   FiCalendar,
@@ -35,6 +34,10 @@ function toISOEndOfDay(value) {
   if (!value) return "";
   const d = new Date(`${value}T23:59:59`);
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
+function isValidObjectId(id) {
+  return typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id);
 }
 
 export default function EventsListPage() {
@@ -164,13 +167,14 @@ export default function EventsListPage() {
         const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
 
         const ids = new Set(
-          list.map((e) => (typeof e === "string" ? e : e?._id)).filter(Boolean),
+          list
+            .map((e) => (typeof e === "string" ? e : e?._id))
+            .filter((id) => isValidObjectId(id)),
         );
 
         setFavoriteIds(ids);
       })
       .catch(() => {
-        // If not logged in or token missing, we just keep favorites empty
         setFavoriteIds(new Set());
       });
   };
@@ -218,9 +222,28 @@ export default function EventsListPage() {
     fetchPage(1, "replace", nextApplied);
   };
 
+  const showToast = ({
+    message,
+    variant = "success",
+    actionLabel = "",
+    actionHref = "",
+  }) => {
+    setToast({ show: true, message, variant, actionLabel, actionHref });
+
+    window.setTimeout(() => {
+      setToast({
+        show: false,
+        message: "",
+        variant: "success",
+        actionLabel: "",
+        actionHref: "",
+      });
+    }, 2500);
+  };
+
   // ✅ Toggle favorite (POST/DELETE)
   const handleToggleFavorite = (eventId) => {
-    if (!eventId) return;
+    if (!isValidObjectId(eventId)) return;
 
     const isFav = favoriteIds.has(eventId);
     setTogglingFavoriteId(eventId);
@@ -257,59 +280,40 @@ export default function EventsListPage() {
           variant: "error",
         });
       })
-
       .finally(() => setTogglingFavoriteId(null));
   };
 
-  const showToast = ({
-    message,
-    variant = "success",
-    actionLabel = "",
-    actionHref = "",
-  }) => {
-    setToast({ show: true, message, variant, actionLabel, actionHref });
+  // ✅ Share handler
+  const handleShare = async (payload) => {
+    const eventId =
+      typeof payload === "string"
+        ? payload
+        : payload?._id || payload?.id || payload?.eventId;
 
-    window.setTimeout(() => {
-      setToast({
-        show: false,
-        message: "",
-        variant: "success",
-        actionLabel: "",
-        actionHref: "",
-      });
-    }, 2500);
-  };
+    if (!eventId) return;
 
-  // ✅ Share handler placeholder (we'll implement Web Share next)
-  const handleShare = async (event) => {
-    if (!event?._id) return;
-
-    const url = `${window.location.origin}/events/${event._id}`;
-    const title = event?.title || "Event";
-    const text = event?.description || "";
+    const url = `${window.location.origin}/events/${eventId}`;
+    const title =
+      typeof payload === "object" ? payload?.title || "Event" : "Event";
+    const text = typeof payload === "object" ? payload?.description || "" : "";
 
     try {
       if (navigator.share) {
         await navigator.share({ title, text, url });
-        showToast({
-          message: t?.shared || "Ready to share",
-          variant: "success",
-        });
+        showToast({ message: "Ready to share", variant: "success" });
         return;
       }
 
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
-        showToast({
-          message: t?.linkCopied || "Link copied",
-          variant: "success",
-        });
+        showToast({ message: "Link copied", variant: "success" });
         return;
       }
 
-      window.prompt(t?.copyLink || "Copy link:", url);
+      window.prompt("Copy link:", url);
     } catch (err) {
       console.log(err);
+      showToast({ message: "Could not share", variant: "error" });
     }
   };
 
@@ -353,24 +357,12 @@ export default function EventsListPage() {
             </h1>
             <p className="opacity-70 mt-2">{t?.eventsSubtitle || ""}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm rounded-full gap-2 bg-base-100/70 border border-base-300 shadow-sm backdrop-blur opacity-80 hover:opacity-100 hover:bg-base-100"
-              onClick={handleRefresh}
-              disabled={isLoading || isLoadingMore}
-            >
-              <FiRefreshCcw />
-              {t?.refresh || "Refresh"}
-            </button>
-          </div>
         </div>
 
         {/* Toolbar */}
         <form onSubmit={handleApply} className="mt-5 grid gap-3">
           <div className="flex items-center gap-2 w-full">
             <div className="w-full lg:max-w-[38ch]">
-              {/* OPTION A: Join input + button into one block */}
               <div className="join w-full">
                 <label className="input input-bordered border-r-0 join-item flex items-center gap-3 w-full h-9 px-4 rounded-l-2xl rounded-r-none">
                   <FiSearch className="opacity-70" />
@@ -382,18 +374,8 @@ export default function EventsListPage() {
                     onChange={(e) => setQ(e.target.value)}
                     autoComplete="off"
                   />
-                  {q.trim() && (
-                    <button
-                      type="submit"
-                      className="btn join-item h-12 min-h-12 px-8 bg-primary text-primary-content border border-primary shadow-md font-semibold rounded-r-full rounded-l-none hover:brightness-95 active:scale-[0.98] transition"
-                      disabled={isLoading || isLoadingMore}
-                    >
-                      {t?.search || "Search"}
-                    </button>
-                  )}
                 </label>
 
-                {/* ONLY CHANGE: make it look/feel like a real button (no icon) */}
                 <button
                   type="submit"
                   className="btn join-item h-9 min-h-9 px-4 bg-primary text-primary-content border border-primary shadow-sm font-medium rounded-r-full rounded-l-none hover:brightness-95 active:scale-[0.98] transition"
@@ -403,7 +385,7 @@ export default function EventsListPage() {
                 </button>
               </div>
             </div>
-            {/* Keep the rest of the toolbar exactly as it was, aligned to the right */}
+
             <div className="ml-auto flex flex-wrap items-center gap-2 justify-end">
               <button
                 type="button"
@@ -412,6 +394,7 @@ export default function EventsListPage() {
               >
                 <IconText icon={FiSliders}>{t?.filters || "Filters"}</IconText>
               </button>
+
               {hasActiveFilters && (
                 <button
                   type="button"
@@ -421,6 +404,7 @@ export default function EventsListPage() {
                   <IconText icon={FiX}>{t?.clear || "Clear"}</IconText>
                 </button>
               )}
+
               <div className="flex items-center gap-2">
                 <span className="text-sm opacity-70 hidden sm:inline">
                   {t?.sort || "Sort"}
@@ -437,7 +421,6 @@ export default function EventsListPage() {
             </div>
           </div>
 
-          {/* Applied chips */}
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-2">
               {applied.q?.trim() && (
@@ -468,12 +451,11 @@ export default function EventsListPage() {
               )}
             </div>
           )}
-          {/* Collapsible filters */}
+
           {isFiltersOpen && (
             <div className="card bg-base-100 border border-base-300 rounded-2xl">
               <div className="card-body p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  {/* FROM */}
                   <label className="form-control w-full">
                     <div className="flex items-center gap-3">
                       <span className="font-bold flex items-center gap-2">
@@ -488,7 +470,7 @@ export default function EventsListPage() {
                       className="input input-bordered rounded-full h-9 min-h-9 px-4 bg-base-100 shadow-sm border border-base-300 focus:outline-none focus:border-primary/60 focus:shadow-md w-fit min-w-[160px] max-w-[180px]"
                     />
                   </label>
-                  {/* TO */}
+
                   <label className="form-control w-full">
                     <div className="flex items-center gap-3 md:justify-start">
                       <span className="font-bold flex items-center gap-2">
@@ -504,7 +486,7 @@ export default function EventsListPage() {
                       className="input input-bordered rounded-full h-9 min-h-9 px-4 bg-base-100 shadow-sm border border-base-300 focus:outline-none focus:border-primary/60 focus:shadow-md w-fit min-w-[160px] max-w-[180px]"
                     />
                   </label>
-                  {/* APPLY */}
+
                   <div className="flex items-center md:justify-end justify-center">
                     <button
                       type="submit"
@@ -513,7 +495,7 @@ export default function EventsListPage() {
                       {t?.apply || "Apply"}
                     </button>
                   </div>
-                  {/* TIP */}
+
                   <p className="text-sm opacity-60 leading-snug md:col-span-3">
                     {t?.tip || "Tip: search first, then narrow by dates."}
                   </p>
@@ -548,7 +530,6 @@ export default function EventsListPage() {
         </div>
       ) : (
         <>
-          {/* Meta row */}
           <div className="flex flex-wrap items-center justify-between mb-4 text-sm opacity-70 gap-2">
             <span>
               {t?.showing || "Showing"} {events.length} {t?.of || "of"}{" "}
@@ -559,21 +540,24 @@ export default function EventsListPage() {
             </span>
           </div>
 
-          {/* Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-            {events.map((ev) => (
-              <EventCard
-                key={ev._id}
-                event={ev}
-                isFavorited={favoriteIds.has(ev._id)}
-                isTogglingFavorite={togglingFavoriteId === ev._id}
-                onToggleFavorite={handleToggleFavorite}
-                onShare={handleShare}
-              />
-            ))}
+            {events.map((ev) => {
+              const id = ev?._id;
+              if (!isValidObjectId(id)) return null;
+
+              return (
+                <EventCard
+                  key={id}
+                  event={ev}
+                  isFavorited={favoriteIds.has(id)}
+                  isTogglingFavorite={togglingFavoriteId === id}
+                  onToggleFavorite={handleToggleFavorite}
+                  onShare={handleShare}
+                />
+              );
+            })}
           </div>
 
-          {/* Load more */}
           <div className="mt-6 flex justify-center pb-20 md:pb-0">
             {canLoadMore ? (
               <button

@@ -4,6 +4,7 @@ import IsAnon from "./components/IsAnon";
 import Navbar from "./components/Navbar";
 import MobileBottomNav from "./components/MobileBottomNav";
 import "./index.css";
+import MePage from "./pages/MePage";
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -16,6 +17,10 @@ import EditEventPage from "./pages/EditEventPage";
 import MyEventsPage from "./pages/MyEventsPage";
 import AttendingPage from "./pages/AttendingPage";
 import FavoritesPage from "./pages/FavoritesPage";
+
+// ✅ New details pages
+import UserDetailsPage from "./pages/UserDetailsPage";
+import CommentDetailsPage from "./pages/CommentDetailsPage";
 
 function App() {
   return (
@@ -77,6 +82,14 @@ function App() {
             }
           />
           <Route
+            path="/me"
+            element={
+              <IsPrivate>
+                <MePage />
+              </IsPrivate>
+            }
+          />
+          <Route
             path="/attending"
             element={
               <IsPrivate>
@@ -89,6 +102,24 @@ function App() {
             element={
               <IsPrivate>
                 <FavoritesPage />
+              </IsPrivate>
+            }
+          />
+
+          {/* ✅ New routes */}
+          <Route
+            path="/users/:userId"
+            element={
+              <IsPrivate>
+                <UserDetailsPage />
+              </IsPrivate>
+            }
+          />
+          <Route
+            path="/comments/:commentId"
+            element={
+              <IsPrivate>
+                <CommentDetailsPage />
               </IsPrivate>
             }
           />
