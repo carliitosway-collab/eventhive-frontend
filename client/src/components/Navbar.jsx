@@ -1,10 +1,11 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/auth.context";
 import { LangContext } from "../context/lang.context";
 import { FiUser, FiLogOut, FiLogIn, FiMenu, FiGlobe } from "react-icons/fi";
 
 export default function Navbar() {
+  const navigate = useNavigate();
   const { isLoggedIn, user, logOutUser } = useContext(AuthContext);
   const { toggleLang, t } = useContext(LangContext);
 
@@ -14,12 +15,20 @@ export default function Navbar() {
   const mobileItemClass = ({ isActive }) =>
     `justify-start ${isActive ? "active font-semibold" : ""}`;
 
+  const handleLogout = () => {
+    logOutUser();
+    navigate("/");
+  };
+
   return (
     <div className="bg-base-100 border-b border-base-300">
       <div className="navbar max-w-6xl mx-auto px-4">
         {/* LEFT */}
         <div className="navbar-start">
-          <Link to="/" className="btn btn-ghost text-lg font-black tracking-tight">
+          <Link
+            to="/"
+            className="btn btn-ghost text-lg font-black tracking-tight"
+          >
             EventHive
           </Link>
         </div>
@@ -37,31 +46,6 @@ export default function Navbar() {
                 {t.navEvents}
               </NavLink>
             </li>
-
-            {isLoggedIn && (
-              <>
-                <li>
-                  <NavLink to="/my-events" className={linkClass}>
-                    {t.navMyEvents}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/attending" className={linkClass}>
-                    {t.navAttending}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/favorites" className={linkClass}>
-                    {t.navFavorites}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/events/new" className={linkClass}>
-                    {t.navNewEvent}
-                  </NavLink>
-                </li>
-              </>
-            )}
           </ul>
         </div>
 
@@ -81,15 +65,20 @@ export default function Navbar() {
 
           {isLoggedIn ? (
             <>
-              <div className="hidden sm:flex items-center gap-2 opacity-80">
+              {/* User -> Profile */}
+              <NavLink
+                to="/profile"
+                className="hidden sm:inline-flex items-center gap-2 opacity-80 hover:opacity-100 transition"
+                title={t?.meTitle || "My profile"}
+              >
                 <FiUser />
                 <span className="font-semibold">{user?.name || "User"}</span>
-              </div>
+              </NavLink>
 
               {/* Logout (desktop) */}
               <button
                 type="button"
-                onClick={logOutUser}
+                onClick={handleLogout}
                 className="btn btn-outline btn-sm gap-2 hidden md:inline-flex"
               >
                 <FiLogOut />
@@ -98,7 +87,10 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <NavLink to="/signup" className="btn btn-ghost btn-sm hidden md:inline-flex">
+              <NavLink
+                to="/signup"
+                className="btn btn-ghost btn-sm hidden md:inline-flex"
+              >
                 {t.signup}
               </NavLink>
 
@@ -137,12 +129,20 @@ export default function Navbar() {
             >
               {/* User block (mobile) */}
               {isLoggedIn && (
-                <li className="menu-title">
-                  <span className="flex items-center gap-2">
-                    <FiUser />
-                    {user?.name || "User"}
-                  </span>
-                </li>
+                <>
+                  <li className="menu-title">
+                    <span className="flex items-center gap-2">
+                      <FiUser />
+                      {user?.name || "User"}
+                    </span>
+                  </li>
+
+                  <li>
+                    <NavLink to="/profile" className={mobileItemClass}>
+                      {t?.meTitle || "My profile"}
+                    </NavLink>
+                  </li>
+                </>
               )}
 
               <li>
@@ -157,39 +157,16 @@ export default function Navbar() {
               </li>
 
               {isLoggedIn ? (
-                <>
-                  <li>
-                    <NavLink to="/my-events" className={mobileItemClass}>
-                      {t.navMyEvents}
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/attending" className={mobileItemClass}>
-                      {t.navAttending}
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/favorites" className={mobileItemClass}>
-                      {t.navFavorites}
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/events/new" className={mobileItemClass}>
-                      {t.navNewEvent}
-                    </NavLink>
-                  </li>
-
-                  <li className="mt-2">
-                    <button
-                      type="button"
-                      onClick={logOutUser}
-                      className="btn btn-outline btn-sm gap-2 w-full justify-start"
-                    >
-                      <FiLogOut />
-                      {t.logout}
-                    </button>
-                  </li>
-                </>
+                <li className="mt-2">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="btn btn-outline btn-sm gap-2 w-full justify-start"
+                  >
+                    <FiLogOut />
+                    {t.logout}
+                  </button>
+                </li>
               ) : (
                 <>
                   <li>

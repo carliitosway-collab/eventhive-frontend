@@ -35,7 +35,9 @@ function formatEventDate(dateIso, lang) {
 
   const get = (type) => parts.find((p) => p.type === type)?.value || "";
 
-  return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get("minute")}`;
+  return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get(
+    "minute",
+  )}`;
 }
 
 export default function EventCard({
@@ -45,6 +47,7 @@ export default function EventCard({
   onToggleFavorite,
   onShare,
   onRemove,
+  showActions = true, // ✅ NEW
 }) {
   const navigate = useNavigate();
   const { lang, t } = useContext(LangContext);
@@ -88,62 +91,76 @@ export default function EventCard({
             {event?.title || "Untitled"}
           </h3>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!safeId) return;
-                onToggleFavorite?.(safeId);
-              }}
-              className={PILL_BTN}
-              disabled={isTogglingFavorite || !safeId}
-            >
-              {isTogglingFavorite ? (
-                <span className="loading loading-spinner loading-sm" />
-              ) : isFavorited ? (
-                <BsBookmarkFill className="text-amber-500" />
-              ) : (
-                <BsBookmark />
+          {showActions && (
+            <div className="flex items-center gap-2 shrink-0">
+              {!!onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!safeId) return;
+                    onToggleFavorite?.(safeId);
+                  }}
+                  className={PILL_BTN}
+                  disabled={isTogglingFavorite || !safeId}
+                  aria-label={
+                    isFavorited ? "Remove from favorites" : "Save to favorites"
+                  }
+                  title={
+                    isFavorited ? "Remove from favorites" : "Save to favorites"
+                  }
+                >
+                  {isTogglingFavorite ? (
+                    <span className="loading loading-spinner loading-sm" />
+                  ) : isFavorited ? (
+                    <BsBookmarkFill className="text-amber-500" />
+                  ) : (
+                    <BsBookmark />
+                  )}
+                </button>
               )}
-            </button>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!safeId) return;
-                onShare?.({ ...event, _id: safeId });
-              }}
-              className={PILL_BTN}
-              disabled={!safeId}
-            >
-              <FiUpload />
-            </button>
+              {!!onShare && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!safeId) return;
+                    onShare?.({ ...event, _id: safeId });
+                  }}
+                  className={PILL_BTN}
+                  disabled={!safeId}
+                  aria-label="Share"
+                  title="Share"
+                >
+                  <FiUpload />
+                </button>
+              )}
 
-            {onRemove && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!safeId) return;
-                  onRemove(safeId);
-                }}
-                className={PILL_BTN}
-                aria-label="Remove from favorites"
-                title="Remove from favorites"
-                disabled={!safeId}
-              >
-                <FiX />
-              </button>
-            )}
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!safeId) return;
+                    onRemove(safeId);
+                  }}
+                  className={PILL_BTN}
+                  aria-label="Remove from favorites"
+                  title="Remove from favorites"
+                  disabled={!safeId}
+                >
+                  <FiX />
+                </button>
+              )}
 
-            {isPrivate && (
-              <span className="badge badge-neutral badge-outline">
-                {t?.private || "Private"}
-              </span>
-            )}
-          </div>
+              {isPrivate && (
+                <span className="badge badge-neutral badge-outline">
+                  {t?.private || "Private"}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <p className="opacity-80 line-clamp-2 min-h-[3rem]">

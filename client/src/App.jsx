@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import IsPrivate from "./components/IsPrivate";
 import IsAnon from "./components/IsAnon";
 import Navbar from "./components/Navbar";
@@ -81,8 +81,9 @@ function App() {
               </IsPrivate>
             }
           />
+          <Route path="/me" element={<Navigate to="/profile" replace />} />
           <Route
-            path="/me"
+            path="/profile"
             element={
               <IsPrivate>
                 <MePage />

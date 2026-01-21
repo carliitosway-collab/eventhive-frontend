@@ -1,6 +1,13 @@
 import { useMemo, useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiAtSign, FiLock, FiAlertTriangle, FiEye, FiEyeOff, FiArrowRight } from "react-icons/fi";
+import {
+  FiAtSign,
+  FiLock,
+  FiAlertTriangle,
+  FiEye,
+  FiEyeOff,
+  FiArrowRight,
+} from "react-icons/fi";
 
 import { AuthContext } from "../context/auth.context";
 import authService from "../services/auth.service";
@@ -28,7 +35,8 @@ export default function LoginPage() {
   const emailOk = !emailTouched || isValidEmail(email);
   const passwordOk = !passwordTouched || password.length >= 6;
 
-  const canSubmit = isValidEmail(email) && password.length >= 6 && !isSubmitting;
+  const canSubmit =
+    isValidEmail(email) && password.length >= 6 && !isSubmitting;
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -70,9 +78,12 @@ export default function LoginPage() {
         storeToken(token);
         return authenticateUser();
       })
-      .then(() => navigate("/"))
+      .then(() => navigate("/profile"))
       .catch((error) => {
-        const msg = error?.response?.data?.message || error?.message || "Login failed. Please try again.";
+        const msg =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Login failed. Please try again.";
         setErrorMessage(msg);
       })
       .finally(() => setIsSubmitting(false));
@@ -84,7 +95,9 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="mb-6 text-center animate-[fadeInUp_220ms_ease-out]">
             <h1 className="text-4xl font-black leading-tight">Login</h1>
-            <p className="opacity-70 mt-2">Sign in to create events, attend, and save favorites.</p>
+            <p className="opacity-70 mt-2">
+              Sign in to create events, attend, and save favorites.
+            </p>
           </div>
 
           <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-md transition hover:shadow-lg border-t-4 border-t-primary animate-[fadeInUp_260ms_ease-out]">
@@ -115,7 +128,9 @@ export default function LoginPage() {
                   </div>
 
                   {!emailOk && (
-                    <div className="mt-2 text-xs opacity-70">Please enter a valid email address.</div>
+                    <div className="mt-2 text-xs opacity-70">
+                      Please enter a valid email address.
+                    </div>
                   )}
                 </label>
 
@@ -151,14 +166,18 @@ export default function LoginPage() {
                       className="btn btn-ghost btn-sm"
                       onClick={() => setShowPassword((prev) => !prev)}
                       disabled={isFormDisabled}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
 
                   {!passwordOk && (
-                    <div className="mt-2 text-xs opacity-70">Password must be at least 6 characters.</div>
+                    <div className="mt-2 text-xs opacity-70">
+                      Password must be at least 6 characters.
+                    </div>
                   )}
                 </label>
 
@@ -192,7 +211,10 @@ export default function LoginPage() {
 
                 <p className="text-sm opacity-80 text-center">
                   No account yet?{" "}
-                  <Link className="link link-primary font-semibold" to="/signup">
+                  <Link
+                    className="link link-primary font-semibold"
+                    to="/signup"
+                  >
                     Sign up
                   </Link>
                 </p>
