@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   FiArrowLeft,
   FiLoader,
@@ -32,6 +26,17 @@ function extractObjectId(value) {
   return match ? match[0] : "";
 }
 
+function getNiceError(err) {
+  const status = err?.response?.status;
+
+  if (status === 401) return "Missing authorization token / session expired.";
+  if (status === 403) return "You don’t have permission to view this comment.";
+  if (status === 404) return "Comment not found.";
+  if (!err?.response) return "No connection or the server is not responding.";
+
+  return err?.response?.data?.message || "Something went wrong.";
+}
+
 function timeAgo(dateValue) {
   const d = new Date(dateValue);
   if (Number.isNaN(d.getTime())) return "";
@@ -53,18 +58,14 @@ function timeAgo(dateValue) {
 }
 
 export default function CommentDetailsPage() {
-  const { commentId: rawCommentId } = useParams();
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
+  const params = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const rawCommentId = params?.commentId || "";
   const cleanCommentId = useMemo(
     () => extractObjectId(rawCommentId),
     [rawCommentId],
-  );
-  const cleanEventId = useMemo(
-    () => extractObjectId(searchParams.get("eventId")),
-    [searchParams],
   );
 
   const stateComment = location.state?.comment || null;
@@ -74,19 +75,18 @@ export default function CommentDetailsPage() {
   const [error, setError] = useState("");
 
   const PILL_BTN =
-    "inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-100 px-4 py-1.5 text-sm font-medium shadow-sm hover:bg-base-200 transition active:scale-[0.98]";
+    "inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-100 px-4 py-1.5 text-sm font-medium shadow-sm transition hover:bg-base-200 hover:shadow-md active:scale-[0.98]";
 
   useEffect(() => {
-    // si URL sucia -> la limpiamos
+    // ✅ si alguien entra con URL sucia, la limpiamos y reemplazamos
     if (rawCommentId && cleanCommentId && rawCommentId !== cleanCommentId) {
-      const next = `/comments/${cleanCommentId}${cleanEventId ? `?eventId=${cleanEventId}` : ""}`;
-      navigate(next, { replace: true, state: location.state });
+      navigate(`/comments/${cleanCommentId}`, {
+        replace: true,
+        state: location.state,
+      });
       return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawCommentId, cleanCommentId]);
 
-  useEffect(() => {
     if (comment) return;
 
     if (!cleanCommentId) {
@@ -95,36 +95,50 @@ export default function CommentDetailsPage() {
       return;
     }
 
-    if (!cleanEventId) {
-      setIsLoading(false);
-      setError("Missing eventId (open the comment from an event).");
-      return;
-    }
-
     setIsLoading(true);
     setError("");
 
     commentsService
-      .getCommentFromEvent({ eventId: cleanEventId, commentId: cleanCommentId })
+      .getCommentDetails(cleanCommentId)
       .then((c) => setComment(c))
       .catch((err) => {
         console.log(err);
-        setError("Comment not found.");
+        setError(getNiceError(err));
       })
       .finally(() => setIsLoading(false));
-  }, [comment, cleanCommentId, cleanEventId]);
+  }, [rawCommentId, cleanCommentId, navigate, location.state, comment]);
+
+  const eventIdFromComment = useMemo(() => {
+    const ev = comment?.event;
+    if (!ev) return "";
+    if (typeof ev === "string") return extractObjectId(ev);
+    return extractObjectId(ev?._id);
+  }, [comment]);
+
+  const authorIdFromComment = useMemo(() => {
+    const a = comment?.author;
+    if (!a) return "";
+    if (typeof a === "string") return extractObjectId(a);
+    return extractObjectId(a?._id);
+  }, [comment]);
 
   return (
     <PageLayout>
       <div className="flex items-center justify-between gap-4">
-        <Link to="/events" className={PILL_BTN}>
+        <button type="button" className={PILL_BTN} onClick={() => navigate(-1)}>
           <FiArrowLeft />
           Back
-        </Link>
+        </button>
+
+        {eventIdFromComment && (
+          <Link to={`/events/${eventIdFromComment}`} className={PILL_BTN}>
+            View event
+          </Link>
+        )}
       </div>
 
       <header className="mt-4 mb-6">
-        <h1 className="text-4xl font-black">Comment Details</h1>
+        <h1 className="text-4xl md:text-5xl font-black">Comment Details</h1>
         <p className="opacity-70 mt-2">Single comment view</p>
       </header>
 
@@ -136,7 +150,7 @@ export default function CommentDetailsPage() {
         <div className="alert alert-error">
           <IconText icon={FiAlertTriangle}>{error}</IconText>
         </div>
-      ) : !comment ? (
+      ) : !comment?._id ? (
         <p className="opacity-70">Comment not found.</p>
       ) : (
         <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
@@ -148,9 +162,19 @@ export default function CommentDetailsPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <div className="min-w-0">
-                <div className="font-semibold truncate">
-                  {comment?.author?.name || comment?.author?.email || "User"}
-                </div>
+                {authorIdFromComment ? (
+                  <Link
+                    to={`/users/${authorIdFromComment}`}
+                    className="font-semibold truncate hover:underline"
+                  >
+                    {comment?.author?.name || comment?.author?.email || "User"}
+                  </Link>
+                ) : (
+                  <div className="font-semibold truncate">
+                    {comment?.author?.name || comment?.author?.email || "User"}
+                  </div>
+                )}
+
                 {comment?.createdAt && (
                   <div className="opacity-60 inline-flex items-center gap-2 mt-1">
                     <FiCalendar />
@@ -159,14 +183,9 @@ export default function CommentDetailsPage() {
                 )}
               </div>
 
-              {cleanEventId && (
-                <Link
-                  to={`/events/${cleanEventId}`}
-                  className="inline-flex items-center gap-2 rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium shadow-sm hover:bg-base-200 transition active:scale-[0.98]"
-                >
-                  View event
-                </Link>
-              )}
+              <span className="badge badge-outline border-base-300">
+                ID: {comment._id}
+              </span>
             </div>
 
             <p className="text-sm leading-relaxed opacity-85 whitespace-pre-wrap">
