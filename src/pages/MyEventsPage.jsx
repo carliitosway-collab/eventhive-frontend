@@ -13,12 +13,13 @@ import {
   FiLock,
   FiGlobe,
   FiTag,
+  FiMoreVertical,
+  FiEye,
 } from "react-icons/fi";
 
 import eventsService from "../services/events.service";
 import { getNiceHttpError } from "../utils/httpErrors";
 import PageLayout from "../layouts/PageLayout";
-import { FiMoreVertical, FiEye } from "react-icons/fi";
 
 function IconText({ icon: Icon, children, className = "" }) {
   return (
@@ -53,7 +54,6 @@ function getSafeCategory(ev) {
   return c || "Other";
 }
 
-/* ✅ NIVEL 2: past + sort helpers */
 function isPastEvent(dateValue) {
   if (!dateValue) return false;
   const t = new Date(dateValue).getTime();
@@ -64,6 +64,12 @@ function sortByDateAsc(a, b) {
   return new Date(a?.date).getTime() - new Date(b?.date).getTime();
 }
 
+/* ✅ Your global pill pattern */
+const PILL_STATIC =
+  "inline-flex items-center gap-2 rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium shadow-sm";
+const PILL_BTN =
+  "inline-flex items-center gap-2 rounded-full border border-base-300 px-4 py-1.5 text-sm font-medium shadow-sm hover:bg-base-200 transition active:scale-[0.98]";
+
 export default function MyEventsPage() {
   const navigate = useNavigate();
 
@@ -72,16 +78,14 @@ export default function MyEventsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  /* ✅ NIVEL 2: toast */
   const [toast, setToast] = useState("");
 
-  // Delete modal state
   const [eventToDelete, setEventToDelete] = useState(null);
   const [isDeletingId, setIsDeletingId] = useState(null);
 
   const eventsCountLabel = useMemo(() => {
     const n = events.length;
-    return `${n} ${n === 1 ? "event" : "events"} created`;
+    return `${n} ${n === 1 ? "event" : "events"}`;
   }, [events.length]);
 
   const fetchMyEvents = (mode = "initial") => {
@@ -136,8 +140,6 @@ export default function MyEventsPage() {
       .deleteEvent(eventId)
       .then(() => {
         closeDeleteModal();
-
-        /* ✅ NIVEL 2: toast feedback */
         setToast("Event deleted");
         window.clearTimeout(window.__ehToastTimer);
         window.__ehToastTimer = window.setTimeout(() => setToast(""), 2200);
@@ -146,14 +148,11 @@ export default function MyEventsPage() {
         setEvents(previous);
         setError(getNiceHttpError(err, "Could not delete the event."));
       })
-      .finally(() => {
-        setIsDeletingId(null);
-      });
+      .finally(() => setIsDeletingId(null));
   };
 
   return (
     <PageLayout>
-      {/* ✅ NIVEL 2: toast UI */}
       {toast ? (
         <div className="toast toast-end z-50">
           <div className="alert alert-success shadow-lg">
@@ -164,25 +163,29 @@ export default function MyEventsPage() {
 
       {/* Top bar */}
       <div className="flex items-center justify-between gap-4">
-        <Link
-          to="/events"
-          className="btn btn-ghost btn-sm border border-base-300 gap-2"
-        >
+        <Link to="/events" className={`btn btn-ghost btn-sm gap-2 ${PILL_BTN}`}>
           <FiArrowLeft />
           Back
         </Link>
+
+        {!isLoading && !error ? (
+          <span className={PILL_STATIC}>
+            <FiCalendar className="opacity-80" />
+            {eventsCountLabel}
+          </span>
+        ) : null}
       </div>
 
+      {/* Header */}
       <header className="mt-4 mb-6">
         <h1 className="text-4xl md:text-5xl font-black">My events</h1>
-
-        {!isLoading && !error && (
-          <p className="opacity-70 mt-2">{eventsCountLabel}</p>
-        )}
+        <p className="opacity-70 mt-2">
+          Manage the events you’ve created — edit, view or delete them.
+        </p>
       </header>
 
       {/* Error banner */}
-      {!isLoading && error && (
+      {!isLoading && error ? (
         <div className="mb-4 space-y-3">
           <div className="alert alert-error">
             <IconText icon={FiAlertTriangle}>{error}</IconText>
@@ -191,7 +194,7 @@ export default function MyEventsPage() {
           <button
             type="button"
             onClick={() => fetchMyEvents("refresh")}
-            className="btn btn-outline btn-sm gap-2"
+            className={PILL_BTN}
             disabled={isRefreshing}
           >
             {isRefreshing ? (
@@ -202,51 +205,58 @@ export default function MyEventsPage() {
             Retry
           </button>
         </div>
-      )}
+      ) : null}
 
+      {/* Loading */}
       {isLoading ? (
-        <p className="opacity-75">
-          <span className="inline-flex items-center gap-2">
-            <FiLoader className="animate-spin" />
-            Loading…
-          </span>
-        </p>
-      ) : !error && events.length === 0 ? (
         <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
           <div className="card-body">
-            <h2 className="card-title">No events yet</h2>
+            <p className="opacity-80 inline-flex items-center gap-2">
+              <FiLoader className="animate-spin" />
+              Loading your events…
+            </p>
+          </div>
+        </div>
+      ) : !error && events.length === 0 ? (
+        /* Empty state */
+        <div className="card bg-base-100 border border-base-300 rounded-2xl shadow-sm">
+          <div className="card-body">
+            <div className="inline-flex items-center gap-2 opacity-70">
+              <span className={PILL_STATIC}>
+                <FiCalendar />
+                Empty
+              </span>
+            </div>
+
+            <h2 className="text-xl font-bold mt-3">No events yet</h2>
             <p className="opacity-75">
-              You haven’t created any events. Create your first one and start
-              sharing it.
+              Create your first event and start sharing it.
             </p>
 
-            <div className="card-actions mt-2">
+            <div className="mt-4">
               <button
                 type="button"
-                className="btn btn-primary gap-2 shadow-md hover:shadow-lg transition active:scale-[0.98]"
                 onClick={() => navigate("/events/new")}
+                className={`${PILL_BTN} bg-base-100 hover:bg-base-200`}
               >
-                <FiPlus />
-                Create your first event
+                <FiPlus className="text-base opacity-70" />
+                <span>Create event</span>
               </button>
             </div>
           </div>
         </div>
       ) : (
+        /* List */
         <div className="grid gap-4">
-          {/* ✅ NIVEL 2: sort by date */}
           {[...events].sort(sortByDateAsc).map((ev) => {
             const isDeletingThis = isDeletingId === ev._id;
-            const dropdownId = `actions_${ev._id}`;
 
             const niceDate = toNiceDate(ev?.date);
             const place = getEventPlace(ev);
             const category = getSafeCategory(ev);
-            const isPublic = ev?.isPublic !== false; // default true
+            const isPublic = ev?.isPublic !== false;
             const imageUrl =
               typeof ev?.imageUrl === "string" ? ev.imageUrl.trim() : "";
-
-            /* ✅ NIVEL 2: past badge */
             const isPast = isPastEvent(ev?.date);
 
             return (
@@ -257,7 +267,6 @@ export default function MyEventsPage() {
                 <div className="card-body p-4 md:p-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-start gap-4 min-w-[240px] flex-1">
-                      {/* Image */}
                       <div className="w-20 h-20 rounded-xl overflow-hidden border border-base-300 bg-base-200 shrink-0">
                         {imageUrl ? (
                           <img
@@ -273,14 +282,12 @@ export default function MyEventsPage() {
                         )}
                       </div>
 
-                      {/* Main info */}
                       <div className="min-w-[200px]">
                         <h3 className="text-lg font-bold m-0">
                           {ev?.title || "Untitled"}
                         </h3>
 
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                          {/* Public/Private */}
                           <span
                             className={`badge badge-sm ${
                               isPublic ? "badge-success" : "badge-ghost"
@@ -290,14 +297,12 @@ export default function MyEventsPage() {
                             {isPublic ? "Public" : "Private"}
                           </span>
 
-                          {/* ✅ NIVEL 2: Past */}
                           {isPast ? (
                             <span className="badge badge-sm badge-outline opacity-70">
                               Past
                             </span>
                           ) : null}
 
-                          {/* Category */}
                           <span className="badge badge-sm badge-outline gap-2">
                             <FiTag />
                             {category}
@@ -318,10 +323,8 @@ export default function MyEventsPage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="dropdown dropdown-end group">
-                        {/* ✅ NIVEL 1: active indicator + focus */}
                         <button
                           type="button"
                           tabIndex={0}
@@ -332,9 +335,7 @@ export default function MyEventsPage() {
                           <FiMoreVertical />
                         </button>
 
-                        {/* ✅ NIVEL 1: animation + focus + close on click via blur */}
                         <ul
-                          id={dropdownId}
                           tabIndex={0}
                           className="dropdown-content menu bg-base-100 border border-base-300 rounded-xl shadow-lg w-44 p-2 origin-top-right transition-all duration-150 ease-out [transform:translateY(6px)_scale(.98)] opacity-0 group-focus-within:opacity-100 group-focus-within:[transform:translateY(0)_scale(1)]"
                         >
@@ -389,11 +390,9 @@ export default function MyEventsPage() {
       <dialog id="delete_event_modal" className="modal">
         <div className="modal-box relative w-11/12 max-w-lg p-5 md:p-6 rounded-2xl">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-black text-2xl">Delete event</h3>
-                <p className="opacity-70 mt-1">This action cannot be undone.</p>
-              </div>
+            <div>
+              <h3 className="font-black text-2xl">Delete event</h3>
+              <p className="opacity-70 mt-1">This action cannot be undone.</p>
             </div>
 
             <button
@@ -418,7 +417,7 @@ export default function MyEventsPage() {
           <div className="modal-action mt-6 flex justify-end gap-3">
             <button
               type="button"
-              className="btn bg-base-200 rounded-full px-6 h-10 text-sm font-medium hover:bg-base-300 active:scale-[0.97]"
+              className={PILL_BTN}
               onClick={closeDeleteModal}
               disabled={!!isDeletingId}
             >
