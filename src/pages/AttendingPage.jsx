@@ -139,8 +139,7 @@ export default function AttendingPage() {
 
       window.prompt("Copy link:", url);
       showToast({ message: "Link ready", variant: "success" });
-    } catch (err) {
-      console.log(err);
+    } catch {
       showToast({ message: "Could not share", variant: "error" });
     }
   };

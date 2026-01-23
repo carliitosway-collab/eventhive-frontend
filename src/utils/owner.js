@@ -5,8 +5,7 @@ export function getUserIdFromToken(token) {
     const payloadJson = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
     const payload = JSON.parse(payloadJson);
     return payload?._id || payload?.id || payload?.userId || null;
-  } catch (e) {
-    console.log("Token decode error:", e);
+  } catch {
     return null;
   }
 }

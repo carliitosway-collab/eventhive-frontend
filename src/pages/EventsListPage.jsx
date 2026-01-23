@@ -171,8 +171,7 @@ export default function EventsListPage() {
 
         setPage(metaPage);
       })
-      .catch((err) => {
-        console.log(err);
+      .catch(() => {
         setError(t?.errorLoad || "Could not load events.");
       })
       .finally(() => {
@@ -304,7 +303,6 @@ export default function EventsListPage() {
           return;
         }
 
-        console.log(err);
         showToast({
           message: t?.somethingWrong || "Something went wrong",
           variant: "error",
@@ -340,8 +338,7 @@ export default function EventsListPage() {
       }
 
       window.prompt("Copy link:", url);
-    } catch (err) {
-      console.log(err);
+    } catch {
       showToast({ message: "Could not share", variant: "error" });
     }
   };

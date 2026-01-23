@@ -29,8 +29,7 @@ function AuthProviderWrapper({ children }) {
         setIsLoggedIn(true);
         setUser(response.data);
       })
-      .catch((err) => {
-        console.log("verify failed:", err?.response?.status);
+      .catch(() => {
         removeToken();
         setIsLoggedIn(false);
         setUser(null);

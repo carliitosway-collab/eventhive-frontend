@@ -180,8 +180,7 @@ export default function EventDetailsPage() {
       );
       const payload = JSON.parse(payloadJson);
       return payload?._id || payload?.id || payload?.userId || null;
-    } catch (e) {
-      console.log("Token decode error:", e);
+    } catch {
       return null;
     }
   }, [token]);
@@ -221,8 +220,7 @@ export default function EventDetailsPage() {
           prev.map((c) => (String(c._id) === String(commentId) ? updated : c)),
         );
       })
-      .catch((err) => {
-        console.log(err);
+      .catch(() => {
         setCommentError(getNiceError(err));
       })
       .finally(() => setTogglingLikeId(null));
@@ -259,7 +257,6 @@ export default function EventDetailsPage() {
         setEvent(eventData);
       })
       .catch((err) => {
-        console.log(err);
         setError(getNiceError(err));
       })
       .finally(() => setIsLoading(false));
@@ -273,8 +270,7 @@ export default function EventDetailsPage() {
     commentsService
       .getByEvent(cleanEventId)
       .then((list) => setComments(list))
-      .catch((err) => {
-        console.log(err);
+      .catch(() => {
         setCommentError("Could not load comments.");
       });
   };
@@ -288,7 +284,7 @@ export default function EventDetailsPage() {
         const favs = Array.isArray(res.data) ? res.data : res.data?.data || [];
         setFavoriteIds(favs.map((ev) => ev._id));
       })
-      .catch((err) => console.log(err));
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -363,7 +359,6 @@ export default function EventDetailsPage() {
     request
       .then(() => fetchEvent())
       .catch((err) => {
-        console.log(err);
         setAttendError(getNiceError(err));
       })
       .finally(() => setIsAttendLoading(false));
@@ -387,7 +382,6 @@ export default function EventDetailsPage() {
     request
       .then(() => fetchFavorites())
       .catch((err) => {
-        console.log(err);
         setFavError(getNiceError(err));
       })
       .finally(() => setIsFavLoading(false));
@@ -419,7 +413,6 @@ export default function EventDetailsPage() {
         setIsComposerOpen(false);
       })
       .catch((err) => {
-        console.log(err);
         setCommentError(getNiceError(err));
       })
       .finally(() => setIsCommentLoading(false));
@@ -437,7 +430,6 @@ export default function EventDetailsPage() {
         setComments((prev) => prev.filter((c) => c._id !== commentId));
       })
       .catch((err) => {
-        console.log(err);
         setCommentError(getNiceError(err));
       });
   };

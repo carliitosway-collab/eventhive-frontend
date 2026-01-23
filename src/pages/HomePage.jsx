@@ -73,7 +73,6 @@ export default function HomePage() {
         setEvents(list);
       })
       .catch((err) => {
-        console.log(err);
         setError(getNiceError(err));
       })
       .finally(() => setIsLoading(false));

@@ -108,8 +108,7 @@ export default function FavoritesPage() {
       const snapshot = prev;
       const next = prev.filter((ev) => ev._id !== eventId);
 
-      favoritesService.removeFavorite(eventId).catch((err) => {
-        console.log(err);
+      favoritesService.removeFavorite(eventId).catch(() => {
         setFavorites(snapshot);
         setError("Could not remove favorite.");
         showToast({ message: "Could not remove", variant: "error" });
@@ -151,8 +150,7 @@ export default function FavoritesPage() {
       }
 
       window.prompt("Copy link:", url);
-    } catch (err) {
-      console.log(err);
+    } catch {
       showToast({ message: "Could not share", variant: "error" });
     }
   };
