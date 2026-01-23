@@ -212,7 +212,7 @@ export default function EventDetailsPage() {
           prev.map((c) => (String(c._id) === String(commentId) ? updated : c)),
         );
       })
-      .catch(() => {
+      .catch((err) => {
         setCommentError(getNiceError(err));
       })
       .finally(() => setTogglingLikeId(null));
@@ -532,6 +532,9 @@ export default function EventDetailsPage() {
   const mapEmbedUrl = buildMapEmbedUrlFromLocation(event.location);
   const mapSearchUrl = buildMapSearchUrlFromLocation(event.location);
 
+  const imgSrc = String(event?.imageUrl || "").trim();
+  const hasImage = !!imgSrc;
+
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto px-4 md:px-6">
@@ -633,6 +636,7 @@ export default function EventDetailsPage() {
           <section className="lg:col-span-12">
             <div className="rounded-2xl px-1 py-2">
               <div className="grid gap-4">
+                {/* 1) ABOUT + DESC */}
                 <div className="grid gap-2">
                   <h2 className="text-lg font-extrabold inline-flex items-center gap-2">
                     <FiMessageCircle />
@@ -642,9 +646,24 @@ export default function EventDetailsPage() {
                   <p className="text-base opacity-80 leading-relaxed max-w-prose">
                     {event.description || "No description."}
                   </p>
+
+                  {/* 2) IMAGE UNDER ABOUT */}
+                  {hasImage ? (
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-base-300 bg-base-200">
+                      <img
+                        src={imgSrc}
+                        alt={event?.title || "Event image"}
+                        className="w-full h-[260px] md:h-[340px] object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : null}
+
                   <div className="h-px bg-base-200 mt-4" />
                 </div>
 
+                {/* 3) EDIT/DELETE UNDER IMAGE */}
                 {isOwner && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -747,47 +766,7 @@ export default function EventDetailsPage() {
               </div>
             )}
 
-            <div className="mt-6 rounded-2xl px-1 py-2">
-              <div className="grid gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-lg font-extrabold inline-flex items-center gap-2">
-                    <FiMapPin />
-                    Location
-                  </h2>
-
-                  {mapSearchUrl && (
-                    <a
-                      href={mapSearchUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={PILL_BTN}
-                      title="Open in Google Maps"
-                    >
-                      Open in Google Maps
-                    </a>
-                  )}
-                </div>
-
-                <p className="text-sm opacity-80">
-                  {event.location || "No location."}
-                </p>
-
-                {mapEmbedUrl ? (
-                  <div className="overflow-hidden rounded-2xl border border-base-300">
-                    <iframe
-                      title="Google Map"
-                      src={mapEmbedUrl}
-                      className="w-full h-64"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm opacity-70">Map not available.</p>
-                )}
-              </div>
-            </div>
-
+            {/* 4) COMMENTS NOW HERE (UNDER EDIT/DELETE) */}
             <div className="mt-6 rounded-2xl border border-indigo-200/70 bg-indigo-50/40 shadow-sm ring-1 ring-indigo-200/40 px-4 py-4 md:px-5">
               <div className="grid gap-4">
                 <div className="flex items-center justify-between gap-4">
@@ -1059,6 +1038,48 @@ export default function EventDetailsPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* 5) LOCATION + MAP NOW LAST */}
+            <div className="mt-6 rounded-2xl px-1 py-2">
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-lg font-extrabold inline-flex items-center gap-2">
+                    <FiMapPin />
+                    Location
+                  </h2>
+
+                  {mapSearchUrl && (
+                    <a
+                      href={mapSearchUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={PILL_BTN}
+                      title="Open in Google Maps"
+                    >
+                      Open in Google Maps
+                    </a>
+                  )}
+                </div>
+
+                <p className="text-sm opacity-80">
+                  {event.location || "No location."}
+                </p>
+
+                {mapEmbedUrl ? (
+                  <div className="overflow-hidden rounded-2xl border border-base-300">
+                    <iframe
+                      title="Google Map"
+                      src={mapEmbedUrl}
+                      className="w-full h-64"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm opacity-70">Map not available.</p>
+                )}
               </div>
             </div>
           </section>

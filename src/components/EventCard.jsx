@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiMapPin,
@@ -20,7 +20,6 @@ function extractObjectId(value) {
 
 function formatEventDate(dateIso, lang) {
   if (!dateIso) return "";
-
   const d = new Date(dateIso);
   if (Number.isNaN(d.getTime())) return "";
 
@@ -35,10 +34,7 @@ function formatEventDate(dateIso, lang) {
   }).formatToParts(d);
 
   const get = (type) => parts.find((p) => p.type === type)?.value || "";
-
-  return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get(
-    "minute",
-  )}`;
+  return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get("minute")}`;
 }
 
 function formatRelativeDate(dateIso, lang) {
@@ -47,20 +43,16 @@ function formatRelativeDate(dateIso, lang) {
   if (Number.isNaN(d.getTime())) return "";
 
   const now = new Date();
-
   const startOfDay = (x) =>
     new Date(x.getFullYear(), x.getMonth(), x.getDate());
-  const a = startOfDay(d);
-  const b = startOfDay(now);
-
-  const diffDays = Math.round((a.getTime() - b.getTime()) / 86400000);
+  const diffDays = Math.round(
+    (startOfDay(d).getTime() - startOfDay(now).getTime()) / 86400000,
+  );
 
   const isEs = lang === "es";
-
   if (diffDays === 0) return isEs ? "hoy" : "today";
   if (diffDays === 1) return isEs ? "mañana" : "tomorrow";
   if (diffDays === -1) return isEs ? "ayer" : "yesterday";
-
   if (diffDays > 1) return isEs ? `en ${diffDays} días` : `in ${diffDays} days`;
   return isEs
     ? `hace ${Math.abs(diffDays)} días`
@@ -71,7 +63,6 @@ function formatPrice(price, lang) {
   if (price === null || price === undefined) return "";
   const n = Number(price);
   if (Number.isNaN(n) || n < 0) return "";
-
   if (n === 0) return lang === "es" ? "Gratis" : "Free";
 
   try {
@@ -124,22 +115,35 @@ export default function EventCard({
 
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const safeId = useMemo(() => {
-    return extractObjectId(event?._id || event?.id || event?.eventId);
-  }, [event?._id, event?.id, event?.eventId]);
+  const imgSrc = useMemo(
+    () => (event?.imageUrl || "").trim(),
+    [event?.imageUrl],
+  );
+  const hasImage = !!imgSrc;
 
-  const dateText = useMemo(() => {
-    const formatted = formatEventDate(event?.date, lang);
-    return formatted || t?.noDate || "No date";
-  }, [event?.date, lang, t]);
+  useEffect(() => {
+    setImgLoaded(false);
+  }, [imgSrc]);
 
-  const relativeText = useMemo(() => {
-    return formatRelativeDate(event?.date, lang);
-  }, [event?.date, lang]);
+  const safeId = useMemo(
+    () => extractObjectId(event?._id || event?.id || event?.eventId),
+    [event?._id, event?.id, event?.eventId],
+  );
 
-  const priceText = useMemo(() => {
-    return formatPrice(event?.price, lang);
-  }, [event?.price, lang]);
+  const dateText = useMemo(
+    () => formatEventDate(event?.date, lang) || t?.noDate || "No date",
+    [event?.date, lang, t],
+  );
+
+  const relativeText = useMemo(
+    () => formatRelativeDate(event?.date, lang),
+    [event?.date, lang],
+  );
+
+  const priceText = useMemo(
+    () => formatPrice(event?.price, lang),
+    [event?.price, lang],
+  );
 
   const goToDetail = () => {
     if (!safeId) return;
@@ -147,8 +151,6 @@ export default function EventCard({
   };
 
   const isPrivate = event?.isPublic === false;
-  const hasImage = !!event?.imageUrl;
-
   const imageHeight = featured ? "h-56 lg:h-64" : "h-52";
 
   const ICON_BTN =
@@ -162,18 +164,11 @@ export default function EventCard({
       onClick={goToDetail}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") goToDetail();
-      }}
-      className={`
-        card bg-base-100 border border-base-300 rounded-2xl
-        shadow-sm hover:shadow-md transition-all duration-200
-        cursor-pointer hover:-translate-y-[1px]
-        overflow-hidden group
-        ${featured ? "lg:col-span-3" : ""}
-      `}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToDetail()}
+      className={`card bg-base-100 border border-base-300 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden group ${
+        featured ? "lg:col-span-3" : ""
+      }`}
     >
-      {/* IMAGE + OVERLAY */}
       <div
         className={`relative w-full overflow-hidden ${imageHeight} bg-base-200`}
       >
@@ -183,19 +178,21 @@ export default function EventCard({
 
         {hasImage ? (
           <img
-            src={event.imageUrl}
+            src={imgSrc}
             alt={event?.title || "Event image"}
             onLoad={() => setImgLoaded(true)}
-            className={`
-              w-full h-full object-cover
-              transition-transform duration-700
-              group-hover:scale-110
-              ${imgLoaded ? "blur-0" : "blur-md"}
-            `}
+            onError={(e) => {
+              console.log("IMG ERROR src:", e.currentTarget.src);
+              setImgLoaded(true);
+            }}
+            referrerPolicy="no-referrer"
+            className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${
+              imgLoaded ? "blur-0" : "blur-md"
+            }`}
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-sm opacity-60 bg-gradient-to-br from-base-300 to-base-100">
+          <div className="w-full h-full flex items-center justify-center text-sm opacity-60">
             No image available
           </div>
         )}
@@ -208,20 +205,11 @@ export default function EventCard({
           }`}
         />
 
-        <div
-          className="
-            pointer-events-none absolute inset-0
-            translate-x-[-120%] group-hover:translate-x-[120%]
-            transition-transform duration-1000
-            bg-gradient-to-r from-transparent via-white/20 to-transparent
-          "
-        />
-
         {event?.category && (
           <span
-            className={`absolute top-3 left-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold
-    border shadow-sm backdrop-blur bg-base-100/70
-    ${CATEGORY_BADGE[event.category] || CATEGORY_BADGE.Other}`}
+            className={`absolute top-3 left-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border shadow-sm backdrop-blur bg-base-100/70 ${
+              CATEGORY_BADGE[event.category] || CATEGORY_BADGE.Other
+            }`}
           >
             {event.category}
           </span>
@@ -229,127 +217,49 @@ export default function EventCard({
 
         {isPrivate && (
           <span className="absolute top-3 right-3 badge bg-neutral text-neutral-content gap-1 text-xs">
-            <FiLock />
-            {t?.private || "Private"}
+            <FiLock /> {t?.private || "Private"}
           </span>
         )}
 
         <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-          <h3 className="text-lg md:text-xl font-bold leading-snug line-clamp-2 drop-shadow">
+          <h3 className="text-lg font-bold line-clamp-2">
             {event?.title || "Untitled"}
           </h3>
-
           <div className="mt-1 flex items-center gap-2 text-sm opacity-90">
             <FiCalendar
               className={CATEGORY_ICON[event.category] || CATEGORY_ICON.Other}
             />
-
             <span>{dateText}</span>
           </div>
         </div>
       </div>
 
-      {/* CONTENT */}
-      <div className="card-body gap-3 flex flex-col">
-        {/* Row: description + compact actions */}
-        <div className="flex items-start justify-between gap-3">
-          <p className="opacity-75 line-clamp-2 leading-snug">
-            {event?.description || t?.noDesc || "No description"}
-          </p>
+      <div className="card-body gap-3">
+        <p className="opacity-75 line-clamp-2">
+          {event?.description || t?.noDesc || "No description"}
+        </p>
 
-          {showActions && (
-            <div className="flex items-center gap-2 shrink-0">
-              {!!onToggleFavorite && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!safeId) return;
-                    onToggleFavorite?.(safeId);
-                  }}
-                  className={ICON_BTN}
-                  disabled={isTogglingFavorite || !safeId}
-                  aria-label={
-                    isFavorited ? "Remove from favorites" : "Save to favorites"
-                  }
-                  title={
-                    isFavorited ? "Remove from favorites" : "Save to favorites"
-                  }
-                >
-                  {isTogglingFavorite ? (
-                    <span className="loading loading-spinner loading-sm" />
-                  ) : isFavorited ? (
-                    <BsBookmarkFill className="text-amber-500" />
-                  ) : (
-                    <BsBookmark />
-                  )}
-                </button>
-              )}
-
-              {!!onShare && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!safeId) return;
-                    onShare?.({ ...event, _id: safeId });
-                  }}
-                  className={ICON_BTN}
-                  disabled={!safeId}
-                  aria-label="Share"
-                  title="Share"
-                >
-                  <FiUpload />
-                </button>
-              )}
-
-              {onRemove && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!safeId) return;
-                    onRemove(safeId);
-                  }}
-                  className={ICON_BTN}
-                  aria-label="Remove"
-                  title="Remove"
-                  disabled={!safeId}
-                >
-                  <FiX />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Location + relative date */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span className="inline-flex items-center gap-2 opacity-90">
+        <div className="flex items-center justify-between text-sm">
+          <span className="inline-flex items-center gap-2">
             <FiMapPin
               className={CATEGORY_ICON[event.category] || CATEGORY_ICON.Other}
             />
-
             <span className="font-semibold">
               {event?.location || t?.noLocation || "No location"}
             </span>
           </span>
 
           {!!relativeText && (
-            <span className="badge badge-outline border-base-300 text-xs opacity-80">
-              {relativeText}
-            </span>
+            <span className="badge badge-outline text-xs">{relativeText}</span>
           )}
         </div>
 
-        {/* Meta line: Category · Price */}
         <div className="text-xs opacity-60">
           <span className="font-medium">{event?.category || "Other"}</span>
           {priceText ? <span> · {priceText}</span> : null}
         </div>
 
-        {/* CTA pill */}
-        <div className="mt-2 flex items-center justify-end">
+        <div className="mt-2 flex justify-end">
           <button
             type="button"
             className={CTA_PILL}
@@ -360,7 +270,7 @@ export default function EventCard({
             disabled={!safeId}
           >
             <span>{t?.viewDetails || "View details"}</span>
-            <FiArrowRight className="transition group-hover:translate-x-0.5" />
+            <FiArrowRight />
           </button>
         </div>
       </div>
