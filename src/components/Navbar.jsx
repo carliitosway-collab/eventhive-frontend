@@ -8,8 +8,11 @@ import UserMenu from "../components/UserMenu";
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { isLoggedIn, user, logOutUser } = useContext(AuthContext);
-  const { toggleLang, t } = useContext(LangContext);
+  const auth = useContext(AuthContext) || {};
+  const lang = useContext(LangContext) || {};
+
+  const { isLoggedIn = false, user = null, logOutUser = () => {} } = auth;
+  const { toggleLang = () => {}, t = {} } = lang;
 
   const linkClass = ({ isActive }) =>
     `inline-flex items-center rounded-full px-3 h-8 text-sm font-semibold transition border

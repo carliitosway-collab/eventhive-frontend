@@ -1,7 +1,14 @@
 import { createContext, useEffect, useState } from "react";
 import authService from "../services/auth.service";
 
-const AuthContext = createContext();
+const AuthContext = createContext({
+  isLoggedIn: false,
+  isLoading: true,
+  user: null,
+  storeToken: () => {},
+  authenticateUser: () => {},
+  logOutUser: () => {},
+});
 
 function AuthProviderWrapper({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
